@@ -3,26 +3,41 @@
 import { useMemo, useState } from "react";
 import {
   Activity,
-  CheckCircle2,
-  Clock,
   AlertTriangle,
-  FileEdit,
-  Users,
-  RefreshCw,
+  ArrowLeft,
+  BookOpen,
+  CheckCircle2,
   ChevronRight,
+  Clock,
+  FileEdit,
+  GraduationCap,
+  RefreshCw,
+  User,
+  Users,
+  X,
+  XCircle,
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
   liveClasses,
+  unexplainedCases,
   type ClassSnapshot,
   type SubmissionStatus,
 } from "@/data/mock/office";
 
+function titleCase(s: string) {
+  return s
+    .split(" ")
+    .map((w) => (w.length ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(" ");
+}
+
 export default function LiveAttendancePage() {
-  const [rows, setRows] = useState<ClassSnapshot[]>(liveClasses);
+  const [rows] = useState<ClassSnapshot[]>(liveClasses);
   const [filter, setFilter] = useState<"all" | SubmissionStatus>("all");
   const [refreshedAt, setRefreshedAt] = useState<string>("09:14");
   const [refreshing, setRefreshing] = useState(false);
+  const [openClass, setOpenClass] = useState<ClassSnapshot | null>(null);
 
   const filtered = useMemo(
     () => (filter === "all" ? rows : rows.filter((r) => r.status === filter)),
@@ -61,7 +76,7 @@ export default function LiveAttendancePage() {
       actions={
         <button
           onClick={handleRefresh}
-          className="h-9 px-3 rounded-md border border-border text-sm hover:bg-muted inline-flex items-center gap-1.5"
+          className="h-9 px-3.5 rounded-md border border-border text-sm hover:bg-muted inline-flex items-center gap-1.5"
         >
           <RefreshCw
             className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`}
@@ -71,32 +86,32 @@ export default function LiveAttendancePage() {
       }
     >
       {/* Header strip */}
-      <div className="rounded-lg border border-border bg-surface px-4 py-3 mb-4 flex flex-wrap items-center gap-3">
-        <span className="h-9 w-9 rounded-lg bg-blue-light text-blue grid place-items-center shrink-0">
-          <Activity className="h-4 w-4" />
+      <div className="rounded-lg border border-border bg-surface px-5 py-4 mb-6 flex flex-wrap items-center gap-3">
+        <span className="h-10 w-10 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
+          <Activity className="h-5 w-5" />
         </span>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium">
             Morning roll call · 12 Sep 2026
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground mt-0.5">
             Last updated at {refreshedAt}
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs">
-          <span className="inline-flex items-center gap-1 text-success">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+          <span className="inline-flex items-center gap-1.5 text-success">
             <span className="h-2 w-2 rounded-full bg-success" />
             {counts.submitted} submitted
           </span>
-          <span className="inline-flex items-center gap-1 text-muted-foreground">
-            <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+          <span className="inline-flex items-center gap-1.5 text-inactive">
+            <span className="h-2 w-2 rounded-full bg-inactive-border" />
             {counts.pending} pending
           </span>
-          <span className="inline-flex items-center gap-1 text-warning">
+          <span className="inline-flex items-center gap-1.5 text-warning">
             <span className="h-2 w-2 rounded-full bg-warning" />
             {counts.draft} draft
           </span>
-          <span className="inline-flex items-center gap-1 text-danger">
+          <span className="inline-flex items-center gap-1.5 text-danger">
             <span className="h-2 w-2 rounded-full bg-danger" />
             {counts.overdue} overdue
           </span>
@@ -104,7 +119,7 @@ export default function LiveAttendancePage() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
         <StatCard
           icon={<CheckCircle2 className="h-4 w-4" />}
           label="Submitted"
@@ -136,7 +151,7 @@ export default function LiveAttendancePage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-1 mb-4">
+      <div className="flex flex-wrap items-center gap-1.5 mb-6">
         <FilterTab active={filter === "all"} onClick={() => setFilter("all")}>
           All ({rows.length})
         </FilterTab>
@@ -167,22 +182,32 @@ export default function LiveAttendancePage() {
       </div>
 
       {/* Class grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((c) => (
-          <ClassCard key={c.classId} cls={c} />
-        ))}
-      </div>
-
-      {filtered.length === 0 && (
+      {filtered.length === 0 ? (
         <div className="rounded-lg border border-border bg-surface px-6 py-16 text-center text-sm text-muted-foreground">
           No classes match this filter.
         </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((c) => (
+            <ClassCard
+              key={c.classId}
+              cls={c}
+              onView={() => setOpenClass(c)}
+            />
+          ))}
+        </div>
+      )}
+
+      {openClass && (
+        <ClassDrawer cls={openClass} onClose={() => setOpenClass(null)} />
       )}
     </PageContainer>
   );
 }
 
-/* ---------------- sub-components ---------------- */
+/* =========================================================
+   Sub-components
+   ========================================================= */
 
 function StatCard({
   icon,
@@ -204,17 +229,21 @@ function StatCard({
       ? "text-danger"
       : tone === "warning"
       ? "text-warning"
-      : "text-muted-foreground";
+      : "text-inactive";
 
   const pct = total ? Math.round((value / total) * 100) : 0;
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
+    <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
       <div className={`flex items-center gap-1.5 text-xs ${cls}`}>
         {icon}
-        {label}
+        <span className="truncate">{label}</span>
       </div>
-      <div className={`mt-1 text-2xl font-semibold ${cls}`}>{value}</div>
+      <div
+        className={`mt-2 text-2xl sm:text-3xl font-semibold tabular-nums ${cls}`}
+      >
+        {value}
+      </div>
       <div className="mt-1 text-[11px] text-muted-foreground">
         {pct}% of classes
       </div>
@@ -234,7 +263,7 @@ function FilterTab({
   return (
     <button
       onClick={onClick}
-      className={`h-8 px-3 rounded-md text-xs font-medium transition ${
+      className={`h-8 px-3 rounded-full text-xs font-medium transition ${
         active ? "bg-navy text-white" : "text-muted-foreground hover:bg-muted"
       }`}
     >
@@ -243,7 +272,13 @@ function FilterTab({
   );
 }
 
-function ClassCard({ cls }: { cls: ClassSnapshot }) {
+function ClassCard({
+  cls,
+  onView,
+}: {
+  cls: ClassSnapshot;
+  onView: () => void;
+}) {
   const markedTotal = cls.present + cls.absent + cls.late;
   const pct = cls.total ? Math.round((markedTotal / cls.total) * 100) : 0;
 
@@ -253,22 +288,22 @@ function ClassCard({ cls }: { cls: ClassSnapshot }) {
   > = {
     Submitted: {
       label: "Submitted",
-      badge: "bg-success-light text-success",
+      badge: "bg-success-light text-success border border-success/20",
       ring: "border-l-success",
     },
     Pending: {
       label: "Pending",
-      badge: "bg-muted text-muted-foreground",
-      ring: "border-l-muted-foreground/40",
+      badge: "bg-inactive-bg text-inactive border border-inactive-border",
+      ring: "border-l-inactive-border",
     },
     Draft: {
       label: "Draft",
-      badge: "bg-warning-light text-warning",
+      badge: "bg-warning-light text-warning border border-warning/20",
       ring: "border-l-warning",
     },
     Overdue: {
       label: "Overdue",
-      badge: "bg-danger-light text-danger",
+      badge: "bg-danger-light text-danger border border-danger/20",
       ring: "border-l-danger",
     },
   };
@@ -277,9 +312,19 @@ function ClassCard({ cls }: { cls: ClassSnapshot }) {
 
   return (
     <div
-      className={`rounded-lg border border-border bg-surface border-l-4 ${p.ring} overflow-hidden hover:shadow-sm transition`}
+      onClick={onView}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onView();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      className={`rounded-lg border border-border bg-surface border-l-4 ${p.ring} overflow-hidden hover:shadow-md hover:border-blue/40 transition cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue flex flex-col`}
     >
-      <div className="px-4 py-3 border-b border-border">
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-border">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-sm font-semibold truncate">
@@ -290,45 +335,39 @@ function ClassCard({ cls }: { cls: ClassSnapshot }) {
             </div>
           </div>
           <span
-            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${p.badge}`}
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${p.badge}`}
           >
-            {p.label}
+            {titleCase(cls.status)}
           </span>
         </div>
       </div>
 
-      {/* Attendance counts — only when there is data */}
-      <div className="px-4 py-3">
+      {/* Body */}
+      <div className="px-5 py-4 flex-1">
         {cls.status === "Pending" || cls.status === "Overdue" ? (
-          <div className="text-xs text-muted-foreground py-4 text-center">
+          <div className="text-xs text-muted-foreground py-6 text-center">
             {cls.status === "Pending"
               ? "Waiting for teacher submission."
               : "Roll call is overdue — please follow up."}
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <MiniCount
-                label="Present"
-                value={cls.present}
-                tone="success"
-              />
+            <div className="grid grid-cols-3 gap-2.5 text-center">
+              <MiniCount label="Present" value={cls.present} tone="success" />
               <MiniCount label="Absent" value={cls.absent} tone="danger" />
               <MiniCount label="Late" value={cls.late} tone="warning" />
             </div>
 
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5">
                 <span>
                   {markedTotal} of {cls.total} marked
                 </span>
-                <span>{pct}%</span>
+                <span className="tabular-nums">{pct}%</span>
               </div>
               <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                 <div
-                  className={`h-full ${
-                    pct === 100 ? "bg-success" : "bg-blue"
-                  }`}
+                  className={`h-full ${pct === 100 ? "bg-success" : "bg-blue"}`}
                   style={{ width: `${pct}%` }}
                 />
               </div>
@@ -338,8 +377,8 @@ function ClassCard({ cls }: { cls: ClassSnapshot }) {
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2.5 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1">
+      <div className="px-5 py-3 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
           <Clock className="h-3 w-3" />
           {cls.submittedAt
             ? `Submitted ${cls.submittedAt}`
@@ -347,7 +386,14 @@ function ClassCard({ cls }: { cls: ClassSnapshot }) {
             ? "Draft in progress"
             : "Not yet submitted"}
         </span>
-        <button className="inline-flex items-center gap-0.5 text-blue hover:underline">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onView();
+          }}
+          className="text-xs text-blue hover:underline inline-flex items-center gap-0.5 font-medium"
+        >
           View
           <ChevronRight className="h-3 w-3" />
         </button>
@@ -372,11 +418,275 @@ function MiniCount({
       ? "text-danger"
       : "text-warning";
   return (
-    <div className="rounded-md border border-border bg-background py-2">
-      <div className={`text-lg font-semibold ${cls}`}>{value}</div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+    <div className="rounded-md border border-border bg-background py-2.5">
+      <div className={`text-lg font-semibold tabular-nums ${cls}`}>{value}</div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
         {label}
       </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   Class drawer
+   ========================================================= */
+
+function ClassDrawer({
+  cls,
+  onClose,
+}: {
+  cls: ClassSnapshot;
+  onClose: () => void;
+}) {
+  const marked = cls.present + cls.absent + cls.late;
+  const relatedCases = unexplainedCases.filter(
+    (c) => c.className === cls.name && c.grade === cls.grade
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+
+      <aside className="relative w-full sm:max-w-md h-full bg-surface sm:border-l border-border shadow-xl flex flex-col">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
+          <div className="flex items-start gap-3 min-w-0">
+            <span className="h-11 w-11 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
+              <GraduationCap className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold truncate">
+                {cls.grade} · {cls.name}
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5 font-mono truncate">
+                {cls.classId} · {cls.room}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-md hover:bg-muted shrink-0"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          {/* Status banner */}
+          <section className="rounded-md border border-border bg-muted/20 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Activity className="h-3.5 w-3.5" />
+                Submission status
+              </div>
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  cls.status === "Submitted"
+                    ? "bg-success-light text-success border border-success/20"
+                    : cls.status === "Pending"
+                    ? "bg-inactive-bg text-inactive border border-inactive-border"
+                    : cls.status === "Draft"
+                    ? "bg-warning-light text-warning border border-warning/20"
+                    : "bg-danger-light text-danger border border-danger/20"
+                }`}
+              >
+                {titleCase(cls.status)}
+              </span>
+            </div>
+
+            {cls.status === "Submitted" && (
+              <div className="mt-3 flex items-end gap-2">
+                <div className="text-3xl font-semibold tabular-nums">
+                  {marked}
+                  <span className="text-base text-muted-foreground">
+                    /{cls.total}
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground mb-1">
+                  students marked
+                </div>
+              </div>
+            )}
+
+            {cls.status === "Pending" && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Waiting for the teacher to submit roll call.
+              </p>
+            )}
+
+            {cls.status === "Overdue" && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Roll call is overdue — please follow up with {cls.teacher}.
+              </p>
+            )}
+
+            {cls.status === "Draft" && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Draft in progress — not yet submitted.
+              </p>
+            )}
+          </section>
+
+          {/* Counts */}
+          {cls.status !== "Pending" && cls.status !== "Overdue" && (
+            <section className="grid grid-cols-3 gap-3">
+              <CountBox
+                icon={<CheckCircle2 className="h-4 w-4" />}
+                label="Present"
+                value={cls.present}
+                tone="success"
+              />
+              <CountBox
+                icon={<XCircle className="h-4 w-4" />}
+                label="Absent"
+                value={cls.absent}
+                tone="danger"
+              />
+              <CountBox
+                icon={<Clock className="h-4 w-4" />}
+                label="Late"
+                value={cls.late}
+                tone="warning"
+              />
+            </section>
+          )}
+
+          {/* Class info */}
+          <section>
+            <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
+              Class details
+            </h3>
+            <dl className="rounded-md border border-border divide-y divide-border">
+              <InfoRow
+                icon={<User className="h-3.5 w-3.5" />}
+                label="Teacher"
+                value={cls.teacher}
+              />
+              <InfoRow
+                icon={<Users className="h-3.5 w-3.5" />}
+                label="Enrolled"
+                value={`${cls.total} students`}
+              />
+              <InfoRow
+                icon={<BookOpen className="h-3.5 w-3.5" />}
+                label="Class ID"
+                value={cls.classId}
+                mono
+              />
+              {cls.submittedAt && (
+                <InfoRow
+                  icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                  label="Submitted"
+                  value={cls.submittedAt}
+                />
+              )}
+            </dl>
+          </section>
+
+          {/* Unexplained cases in this class */}
+          {relatedCases.length > 0 && (
+            <section>
+              <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
+                Unexplained absences
+              </h3>
+              <ul className="rounded-md border border-border divide-y divide-border">
+                {relatedCases.map((c) => (
+                  <li key={c.id} className="flex items-center gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate">
+                        {c.studentName}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground font-mono truncate">
+                        {c.studentId}
+                      </div>
+                    </div>
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${
+                        c.status === "Awaiting parent"
+                          ? "bg-danger-light text-danger border border-danger/20"
+                          : c.status === "Parent responded"
+                          ? "bg-warning-light text-warning border border-warning/20"
+                          : "bg-navy text-white border border-navy"
+                      }`}
+                    >
+                      {titleCase(c.status)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-border p-4 shrink-0">
+          <button
+            onClick={onClose}
+            className="w-full h-10 rounded-md border border-border text-sm font-medium hover:bg-muted inline-flex items-center justify-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to board
+          </button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function CountBox({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  tone: "success" | "danger" | "warning";
+}) {
+  const cls =
+    tone === "success"
+      ? "text-success"
+      : tone === "danger"
+      ? "text-danger"
+      : "text-warning";
+  return (
+    <div className="rounded-md border border-border bg-background p-3 text-center">
+      <div className={`inline-flex items-center gap-1 text-[11px] ${cls}`}>
+        {icon}
+        {label}
+      </div>
+      <div className={`mt-1 text-lg font-semibold ${cls} tabular-nums`}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({
+  icon,
+  label,
+  value,
+  mono,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-4 px-4 py-2.5">
+      <span className="text-muted-foreground shrink-0">{icon}</span>
+      <dt className="text-xs text-muted-foreground w-20 shrink-0">{label}</dt>
+      <dd
+        className={`text-sm flex-1 truncate ${
+          mono ? "font-mono text-xs" : ""
+        }`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

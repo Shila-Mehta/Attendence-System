@@ -2,10 +2,17 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  ShieldCheck,
+  ArrowRight,
+} from "lucide-react";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email address."),
@@ -14,12 +21,47 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
+/* =========================================================
+   Demo roles — one-click login for sharing/demo purposes
+   ========================================================= */
+
+const DEMO_ROLES = [
+  {
+    label: "Admin",
+    email: "admin@school.edu",
+    destination: "/admin",
+    description: "Roster, staff, classes, calendar",
+  },
+  {
+    label: "Office",
+    email: "office@school.edu",
+    destination: "/office/live-attendance",
+    description: "Live attendance, corrections, front desk",
+  },
+  {
+    label: "Principal",
+    email: "principal@school.edu",
+    destination: "/principal/dashboard",
+    description: "School-wide KPIs and drill-down",
+  },
+  {
+    label: "Teacher",
+    email: "teacher@school.edu",
+    destination: "/attendance/roll-call",
+    description: "Morning roll call and review",
+  },
+] as const;
+
 export default function StaffLoginPage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [demoLoading, setDemoLoading] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -27,14 +69,31 @@ export default function StaffLoginPage() {
   });
 
   const onSubmit = async (values: FormValues) => {
-    await new Promise((r) => setTimeout(r, 800));
-    console.log("STAFF LOGIN (mock):", values);
-    alert("Mock login — backend not connected yet.");
+    setServerError(null);
+    await new Promise((r) => setTimeout(r, 700));
+
+    const email = values.email.toLowerCase();
+    let destination = "/admin";
+    if (email.includes("office")) destination = "/office/live-attendance";
+    else if (email.includes("principal")) destination = "/principal/dashboard";
+    else if (email.includes("teacher")) destination = "/attendance/roll-call";
+
+    console.log("STAFF LOGIN (mock):", { ...values, destination });
+    router.push(destination);
+  };
+
+  /* One-click demo login */
+  const demoLogin = async (role: (typeof DEMO_ROLES)[number]) => {
+    setDemoLoading(role.label);
+    setValue("email", role.email);
+    setValue("password", "password");
+    await new Promise((r) => setTimeout(r, 400));
+    router.push(role.destination);
   };
 
   return (
     <main className="min-h-screen grid lg:grid-cols-2 bg-background">
-      {/* Left: brand panel */}
+      {/* ================= Left: brand panel ================= */}
       <aside className="hidden lg:flex flex-col justify-between bg-navy text-white p-10">
         <div className="flex items-center gap-2">
           <div className="h-9 w-9 rounded-lg bg-white/10 grid place-items-center">
@@ -71,7 +130,7 @@ export default function StaffLoginPage() {
         </p>
       </aside>
 
-      {/* Right: form */}
+      {/* ================= Right: form + demo ================= */}
       <section className="flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-sm">
           <div className="lg:hidden mb-8 flex items-center gap-2">
@@ -86,7 +145,8 @@ export default function StaffLoginPage() {
             Sign in with your school email address.
           </p>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5">
+            {/* Email */}
             <div>
               <label
                 htmlFor="email"
@@ -104,10 +164,13 @@ export default function StaffLoginPage() {
                            focus:border-blue focus:ring-2 focus:ring-blue/20"
               />
               {errors.email && (
-                <p className="mt-1.5 text-xs text-danger">{errors.email.message}</p>
+                <p className="mt-1.5 text-xs text-danger">
+                  {errors.email.message}
+                </p>
               )}
             </div>
 
+            {/* Password */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label htmlFor="password" className="block text-sm font-medium">
@@ -133,7 +196,11 @@ export default function StaffLoginPage() {
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-foreground"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
               {errors.password && (
@@ -143,6 +210,7 @@ export default function StaffLoginPage() {
               )}
             </div>
 
+            {/* Remember */}
             <label className="flex items-center gap-2 text-sm select-none">
               <input
                 type="checkbox"
@@ -152,6 +220,13 @@ export default function StaffLoginPage() {
               Remember me on this device
             </label>
 
+            {serverError && (
+              <div className="rounded-md border border-danger/30 bg-danger-light text-danger px-3 py-2 text-xs">
+                {serverError}
+              </div>
+            )}
+
+            {/* Submit */}
             <button
               type="submit"
               disabled={isSubmitting}
@@ -163,6 +238,49 @@ export default function StaffLoginPage() {
               {isSubmitting ? "Signing in…" : "Login"}
             </button>
           </form>
+
+          {/* ================= One-click demo ================= */}
+          <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/20 p-4">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-3">
+              Demo — tap a role to sign in instantly
+            </div>
+
+            <div className="space-y-2">
+              {DEMO_ROLES.map((role) => (
+                <button
+                  key={role.label}
+                  type="button"
+                  disabled={demoLoading !== null}
+                  onClick={() => demoLogin(role)}
+                  className="group w-full flex items-center gap-3 rounded-md border border-border bg-surface px-3 py-2.5 text-left transition
+                             hover:border-blue/40 hover:bg-blue-light/40
+                             disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <span className="h-8 w-8 rounded-md bg-navy text-white grid place-items-center text-[11px] font-semibold shrink-0">
+                    {role.label[0]}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium truncate">
+                      {role.label}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {role.description}
+                    </div>
+                  </div>
+                  {demoLoading === role.label ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue shrink-0" />
+                  ) : (
+                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-blue group-hover:translate-x-0.5 transition-all shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
+              These buttons are for demo only. Real authentication will replace
+              them.
+            </div>
+          </div>
 
           <p className="mt-6 text-xs text-muted-foreground text-center">
             Are you a parent?{" "}

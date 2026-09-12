@@ -58,6 +58,11 @@
   --color-warning-light: var(--warning-light);
   --color-danger: var(--danger);
   --color-danger-light: var(--danger-light);
+
+  --color-inactive: var(--inactive);
+  --color-inactive-bg: var(--inactive-bg);
+  --color-inactive-border: var(--inactive-border);
+
   --color-surface: var(--surface);
 
   --radius-sm: calc(var(--radius) * 0.6);
@@ -82,6 +87,10 @@
   --warning-light: #fef3c7;
   --danger: #dc2626;
   --danger-light: #fee2e2;
+
+  --inactive: #334155;         /* slate-700 — dark, readable */
+  --inactive-bg: #e2e8f0;      /* slate-200 — clearly visible fill */
+  --inactive-border: #cbd5e1;  /* slate-300 — defined edge */
 
   --surface: #ffffff;
 

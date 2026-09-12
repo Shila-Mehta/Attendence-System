@@ -258,13 +258,13 @@ function StatCard({
   );
 }
 
-function StatusBadge({ status }: { status: "Active" | "Archived" }) {
+function StatusBadge({ status }: { status: "Active" | "Inactive" }) {
   const cls =
     status === "Active"
-      ? "bg-success-light text-success"
-      : "bg-muted text-muted-foreground";
+      ? "bg-success-light text-success border border-success/20"
+      : "bg-inactive-bg text-inactive border border-inactive-border";
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${cls}`}>
       {status}
     </span>
   );

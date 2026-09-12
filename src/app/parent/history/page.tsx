@@ -6,9 +6,9 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock,
+  Filter,
   TrendingUp,
   XCircle,
-  Filter,
 } from "lucide-react";
 import { ParentShell } from "@/components/layout/ParentShell";
 import {
@@ -93,53 +93,66 @@ export default function ParentHistoryPage() {
     return { ...c, rate };
   }, []);
 
+  const childOptions = [
+    {
+      id: parentChild.studentId,
+      name: parentChild.name,
+      grade: parentChild.grade,
+      className: parentChild.class,
+    },
+  ];
+
   return (
     <ParentShell
       childName={parentChild.name}
       childClass={`${parentChild.grade} · ${parentChild.class}`}
+      childOptions={childOptions}
       alertCount={unreadAlerts}
     >
-      <section className="mb-6">
+      {/* ================= Heading ================= */}
+      <section className="mb-5">
         <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
           Attendance history
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Every day {parentChild.name.split(" ")[0]} has been marked since enrolment.
+          Every day {parentChild.name.split(" ")[0]} has been marked since
+          enrolment.
         </p>
       </section>
 
-      {/* Overall summary */}
-      <section className="rounded-lg border border-border bg-surface p-5 mb-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="h-11 w-11 rounded-lg bg-blue-light text-blue grid place-items-center shrink-0">
-            <TrendingUp className="h-5 w-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs text-muted-foreground">
-              Overall attendance rate
+      {/* ================= Overall summary ================= */}
+      <section className="rounded-lg border border-border bg-surface p-4 sm:p-5 mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="h-11 w-11 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
+              <TrendingUp className="h-5 w-5" />
             </div>
-            <div className="text-2xl font-semibold">{overall.rate}%</div>
+            <div className="min-w-0">
+              <div className="text-xs text-muted-foreground">
+                Overall attendance rate
+              </div>
+              <div className="text-2xl font-semibold tabular-nums">
+                {overall.rate}%
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-3 gap-4 sm:gap-8 text-center">
-            <MiniStat
-              label="Present"
-              value={overall.present}
-              tone="success"
-            />
+
+          <div className="grid grid-cols-3 gap-4 sm:gap-8 text-center shrink-0">
+            <MiniStat label="Present" value={overall.present} tone="success" />
             <MiniStat label="Absent" value={overall.absent} tone="danger" />
             <MiniStat label="Late" value={overall.late} tone="warning" />
           </div>
         </div>
       </section>
 
-      {/* Filters */}
-      <section className="flex flex-wrap items-center gap-3 mb-4">
+      {/* ================= Filters ================= */}
+      <section className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-4">
         <div className="relative">
           <CalendarDays className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <select
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            className="appearance-none h-9 pl-9 pr-9 rounded-md border border-input bg-surface text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
+            className="appearance-none w-full sm:w-auto h-9 pl-9 pr-9 rounded-md border border-input bg-surface text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
           >
             {months.map((m) => (
               <option key={m} value={m}>
@@ -150,8 +163,8 @@ export default function ParentHistoryPage() {
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         </div>
 
-        <div className="flex items-center gap-1">
-          <Filter className="h-3.5 w-3.5 text-muted-foreground mr-1" />
+        <div className="flex items-center gap-1 overflow-x-auto">
+          <Filter className="h-3.5 w-3.5 text-muted-foreground mr-1 shrink-0" />
           <FilterTab
             active={status === "all"}
             onClick={() => setStatus("all")}
@@ -183,31 +196,31 @@ export default function ParentHistoryPage() {
         </div>
       </section>
 
-      {/* Month summary */}
-      <section className="grid gap-4 sm:grid-cols-3 mb-4">
+      {/* ================= Month summary ================= */}
+      <section className="grid grid-cols-3 gap-3 sm:gap-4 mb-4">
         <MonthCard
           icon={<CheckCircle2 className="h-4 w-4" />}
-          label="Present this month"
+          label="Present"
           value={counts.present}
           tone="success"
         />
         <MonthCard
           icon={<XCircle className="h-4 w-4" />}
-          label="Absent this month"
+          label="Absent"
           value={counts.absent}
           tone="danger"
         />
         <MonthCard
           icon={<Clock className="h-4 w-4" />}
-          label="Late this month"
+          label="Late"
           value={counts.late}
           tone="warning"
         />
       </section>
 
-      {/* Records list */}
+      {/* ================= Records ================= */}
       <section className="rounded-lg border border-border bg-surface">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-border">
           <div>
             <h2 className="text-sm font-semibold">
               {month ? monthLabel(month) : "Attendance records"}
@@ -223,22 +236,39 @@ export default function ParentHistoryPage() {
             No records match your filters.
           </div>
         ) : (
-          <ul className="divide-y divide-border">
-            {filtered.map((r) => (
-              <RecordRow key={r.date} record={r} />
-            ))}
-          </ul>
+          <>
+            {/* Column header — desktop only */}
+            <div
+              className="hidden sm:grid items-center gap-5 px-5 py-2.5
+                         border-b border-border bg-muted/20
+                         text-[11px] uppercase tracking-wider text-muted-foreground
+                         sm:grid-cols-[170px_110px_minmax(0,1fr)]"
+            >
+              <div>Date</div>
+              <div>Status</div>
+              <div>Details</div>
+            </div>
+
+            <ul className="divide-y divide-border">
+              {filtered.map((r) => (
+                <RecordRow key={r.date} record={r} />
+              ))}
+            </ul>
+          </>
         )}
       </section>
 
       <p className="mt-4 text-[11px] text-muted-foreground text-center">
-        Records are kept for 2 years. Older records can be requested from the school office.
+        Records are kept for 2 years. Older records can be requested from the
+        school office.
       </p>
     </ParentShell>
   );
 }
 
-/* ---------------- sub-components ---------------- */
+/* =========================================================
+   Sub-components
+   ========================================================= */
 
 function MiniStat({
   label,
@@ -257,7 +287,7 @@ function MiniStat({
       : "text-warning";
   return (
     <div>
-      <div className={`text-lg font-semibold ${cls}`}>{value}</div>
+      <div className={`text-lg font-semibold tabular-nums ${cls}`}>{value}</div>
       <div className="text-[11px] text-muted-foreground">{label}</div>
     </div>
   );
@@ -281,12 +311,14 @@ function MonthCard({
       ? "text-danger"
       : "text-warning";
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
+    <div className="rounded-lg border border-border bg-surface p-3 sm:p-4">
       <div className={`flex items-center gap-1.5 text-xs ${cls}`}>
         {icon}
-        {label}
+        <span className="truncate">{label}</span>
       </div>
-      <div className={`mt-1 text-2xl font-semibold ${cls}`}>{value}</div>
+      <div className={`mt-1 text-xl sm:text-2xl font-semibold ${cls} tabular-nums`}>
+        {value}
+      </div>
     </div>
   );
 }
@@ -305,14 +337,16 @@ function FilterTab({
   return (
     <button
       onClick={onClick}
-      className={`h-8 px-3 rounded-md text-xs font-medium transition inline-flex items-center gap-1.5 ${
-        active ? "bg-navy text-white" : "text-muted-foreground hover:bg-muted"
+      className={`h-8 px-3 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 shrink-0 ${
+        active
+          ? "bg-navy text-white"
+          : "text-muted-foreground hover:bg-muted"
       }`}
     >
       {children}
       {typeof count === "number" && (
         <span
-          className={`inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] ${
+          className={`inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] tabular-nums ${
             active ? "bg-white/20" : "bg-muted text-muted-foreground"
           }`}
         >
@@ -324,47 +358,65 @@ function FilterTab({
 }
 
 function RecordRow({ record }: { record: ParentAttendanceRecord }) {
-  const statusCls =
-    record.status === "Present"
-      ? "bg-success-light text-success"
-      : record.status === "Absent"
-      ? "bg-danger-light text-danger"
-      : "bg-warning-light text-warning";
-
   return (
-    <li className="flex flex-wrap sm:flex-nowrap items-start sm:items-center gap-3 px-5 py-4">
-      <div className="w-40 shrink-0">
-        <div className="text-sm font-medium">{formatLong(record.date)}</div>
-        <div className="text-[11px] text-muted-foreground font-mono">
+    <li
+      className="
+        grid items-center gap-3 px-4 sm:px-5 py-3.5
+        grid-cols-[1fr_auto]
+        sm:grid-cols-[170px_110px_minmax(0,1fr)] sm:gap-5
+      "
+    >
+      {/* Col 1 — Date */}
+      <div className="min-w-0">
+        <div className="text-sm font-medium truncate">
+          {formatLong(record.date)}
+        </div>
+        <div className="text-[11px] text-muted-foreground font-mono tabular-nums">
           {record.date}
         </div>
       </div>
 
-      <span
-        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${statusCls}`}
-      >
-        {record.status}
-      </span>
+      {/* Col 2 — Status pill (right on mobile, left on desktop) */}
+      <div className="flex justify-end sm:justify-start">
+        <StatusPill status={record.status} />
+      </div>
 
-      <div className="flex-1 min-w-0 text-sm">
-        {record.status === "Late" && record.arrivalTime && (
-          <span className="text-muted-foreground">
+      {/* Col 3 — Details */}
+      <div className="col-span-2 sm:col-span-1 text-sm text-muted-foreground truncate">
+        {record.status === "Late" && record.arrivalTime ? (
+          <>
             Arrived at{" "}
-            <span className="text-foreground font-medium">
+            <span className="text-foreground font-medium tabular-nums">
               {record.arrivalTime}
             </span>
-            {record.note && <span> — {record.note}</span>}
-          </span>
-        )}
-        {record.status === "Absent" && (
-          <span className="text-muted-foreground">
-            {record.note ?? "No reason recorded"}
-          </span>
-        )}
-        {record.status === "Present" && (
-          <span className="text-muted-foreground">On time</span>
+            {record.note ? ` — ${record.note}` : ""}
+          </>
+        ) : record.status === "Absent" ? (
+          record.note ?? "No reason recorded"
+        ) : (
+          "On time"
         )}
       </div>
     </li>
+  );
+}
+
+function StatusPill({
+  status,
+}: {
+  status: "Present" | "Absent" | "Late";
+}) {
+  const cls =
+    status === "Present"
+      ? "bg-success-light text-success border border-success/20"
+      : status === "Absent"
+      ? "bg-danger-light text-danger border border-danger/20"
+      : "bg-warning-light text-warning border border-warning/20";
+  return (
+    <span
+      className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap ${cls}`}
+    >
+      {status}
+    </span>
   );
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,6 +22,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function ParentLoginPage() {
+  const router = useRouter();
   const [showPin, setShowPin] = useState(false);
 
   const {
@@ -33,14 +35,13 @@ export default function ParentLoginPage() {
   });
 
   const onSubmit = async (values: FormValues) => {
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 700));
     console.log("PARENT LOGIN (mock):", values);
-    alert("Mock login — backend not connected yet.");
+    router.push("/parent/home");
   };
 
   return (
     <main className="min-h-screen grid lg:grid-cols-2 bg-background">
-      {/* Left: brand panel */}
       <aside className="hidden lg:flex flex-col justify-between bg-navy text-white p-10">
         <div className="flex items-center gap-2">
           <div className="h-9 w-9 rounded-lg bg-white/10 grid place-items-center">
@@ -77,7 +78,6 @@ export default function ParentLoginPage() {
         </p>
       </aside>
 
-      {/* Right: form */}
       <section className="flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-sm">
           <div className="lg:hidden mb-8 flex items-center gap-2">
@@ -93,7 +93,6 @@ export default function ParentLoginPage() {
           </p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
-            {/* Phone */}
             <div>
               <label htmlFor="phone" className="block text-sm font-medium mb-1.5">
                 Phone number
@@ -116,7 +115,6 @@ export default function ParentLoginPage() {
               )}
             </div>
 
-            {/* PIN */}
             <div>
               <label htmlFor="pin" className="block text-sm font-medium mb-1.5">
                 4-digit PIN
@@ -157,6 +155,10 @@ export default function ParentLoginPage() {
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
               {isSubmitting ? "Signing in…" : "Login"}
             </button>
+
+            <p className="text-[11px] text-muted-foreground text-center">
+              Demo — any phone number + any 4-digit PIN works.
+            </p>
 
             <Link
               href="/staff-login"

@@ -269,7 +269,7 @@ export default function ReportAbsencePage() {
                     >
                       <Upload className="h-4 w-4 mx-auto text-muted-foreground" />
                       <div className="mt-1 text-xs text-muted-foreground">
-                        Click to attach a doctor's note or photo (mock)
+                        Click to attach a doctor&apos;s note or photo (mock)
                       </div>
                     </button>
                   )}

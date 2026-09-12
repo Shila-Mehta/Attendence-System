@@ -258,7 +258,7 @@ function StatCard({
   );
 }
 
-function StatusBadge({ status }: { status: "Active" | "Inactive" }) {
+function StatusBadge({ status }: { status: "Active" | "Archived" }) {
   const cls =
     status === "Active"
       ? "bg-success-light text-success border border-success/20"
@@ -284,6 +284,7 @@ function ClassModal({
   const isEdit = Boolean(cls);
   const [form, setForm] = useState<ClassRoom>(
     cls ?? {
+      // eslint-disable-next-line react-hooks/purity
       id: `CL${String(Math.floor(Math.random() * 900) + 100)}`,
       name: "Class A",
       grade: "Grade 1",

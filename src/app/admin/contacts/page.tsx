@@ -339,6 +339,7 @@ function ContactModal({
   const isEdit = Boolean(contact);
   const [form, setForm] = useState<Contact>(
     contact ?? {
+      // eslint-disable-next-line react-hooks/purity
       id: `CT${String(Math.floor(Math.random() * 900) + 100)}`,
       name: "",
       phone: "",

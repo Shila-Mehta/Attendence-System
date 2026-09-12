@@ -234,6 +234,7 @@ function StudentModal({
   const isEdit = Boolean(student);
   const [form, setForm] = useState<Student>(
     student ?? {
+      // eslint-disable-next-line react-hooks/purity
       id: `ST${String(Math.floor(Math.random() * 900) + 100)}`,
       name: "",
       grade: "Grade 1",

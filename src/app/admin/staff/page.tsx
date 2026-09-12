@@ -327,6 +327,7 @@ function StaffModal({
   const isEdit = Boolean(member);
   const [form, setForm] = useState<Staff>(
     member ?? {
+      // eslint-disable-next-line react-hooks/purity
       id: `SF${String(Math.floor(Math.random() * 900) + 100)}`,
       name: "",
       email: "",

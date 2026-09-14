@@ -13,6 +13,7 @@ import {
   Users,
   UserX,
 } from "lucide-react";
+
 import { PageContainer } from "@/components/layout/PageContainer";
 import { students } from "@/data/mock/student";
 import { classes } from "@/data/mock/classes";
@@ -21,6 +22,7 @@ import { contacts } from "@/data/mock/contacts";
 
 export default function AdminDashboardPage() {
   /* ---------------- Real counts from mock data ---------------- */
+
   const counts = {
     students: students.length,
     activeStudents: students.filter((s) => s.status === "Active").length,
@@ -32,10 +34,12 @@ export default function AdminDashboardPage() {
   };
 
   /* ---------------- Data hygiene checks ---------------- */
+
   const studentsWithoutContact = students.filter((s) => {
     const has = contacts.some(
       (c) => c.studentId === s.id && c.status === "Active"
     );
+
     return !has;
   });
 
@@ -104,8 +108,9 @@ export default function AdminDashboardPage() {
       title="Admin Dashboard"
       description="Roster overview and data health for your school."
     >
-      {/* ================= KPI row ================= */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
+      {/* ================= KPI CARDS ================= */}
+
+      <section className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <KpiCard
           icon={<GraduationCap className="h-4 w-4" />}
           label="Students"
@@ -114,6 +119,7 @@ export default function AdminDashboardPage() {
           tone="blue"
           href="/admin/students"
         />
+
         <KpiCard
           icon={<School className="h-4 w-4" />}
           label="Classes"
@@ -122,6 +128,7 @@ export default function AdminDashboardPage() {
           tone="navy"
           href="/admin/classes"
         />
+
         <KpiCard
           icon={<UserRoundCog className="h-4 w-4" />}
           label="Staff"
@@ -130,6 +137,7 @@ export default function AdminDashboardPage() {
           tone="success"
           href="/admin/staff"
         />
+
         <KpiCard
           icon={<BookUser className="h-4 w-4" />}
           label="Contacts"
@@ -140,26 +148,33 @@ export default function AdminDashboardPage() {
         />
       </section>
 
-      {/* ================= Needs attention ================= */}
-      <section className="rounded-lg border border-border bg-surface mb-8">
-        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-border">
-          <div className="flex items-center gap-3 min-w-0">
+      {/* ================= NEEDS ATTENTION ================= */}
+
+      <section className="rounded-lg border border-border bg-surface mb-6 sm:mb-8 overflow-hidden">
+        <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center justify-between gap-3 px-4 sm:px-5 py-4 border-b border-border">
+          <div className="flex items-center gap-3 min-w-0 w-full">
             <span className="h-9 w-9 rounded-lg bg-warning-light text-warning border border-warning/20 grid place-items-center shrink-0">
               <AlertTriangle className="h-4 w-4" />
             </span>
+
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold">Needs attention</h2>
+              <h2 className="text-sm font-semibold">
+                Needs attention
+              </h2>
+
               <p className="text-xs text-muted-foreground mt-0.5">
                 {totalIssues === 0
                   ? "Everything looks clean."
-                  : `${totalIssues} item${totalIssues === 1 ? "" : "s"} across the roster`}
+                  : `${totalIssues} item${
+                      totalIssues === 1 ? "" : "s"
+                    } across the roster`}
               </p>
             </div>
           </div>
         </div>
 
         {totalIssues === 0 ? (
-          <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+          <div className="px-4 sm:px-5 py-8 sm:py-10 text-center text-sm text-muted-foreground">
             No data issues right now.
           </div>
         ) : (
@@ -170,8 +185,10 @@ export default function AdminDashboardPage() {
                 <li key={i.id}>
                   <Link
                     href={i.href}
-                    className="group flex items-center gap-3 px-4 sm:px-5 py-3.5 hover:bg-muted/30 transition"
+                    className="group flex items-start sm:items-center gap-3 px-4 sm:px-5 py-3.5 hover:bg-muted/30 transition min-w-0"
                   >
+                    {/* Issue Icon */}
+
                     <span
                       className={`h-9 w-9 rounded-lg border grid place-items-center shrink-0 ${
                         i.tone === "danger"
@@ -183,14 +200,21 @@ export default function AdminDashboardPage() {
                     >
                       {i.icon}
                     </span>
+
+                    {/* Issue Information */}
+
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium truncate">
+                      <div className="text-sm font-medium break-words">
                         {i.title}
                       </div>
-                      <div className="text-xs text-muted-foreground mt-0.5 truncate">
+
+                      <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed sm:truncate">
                         {i.description}
                       </div>
                     </div>
+
+                    {/* Count */}
+
                     <span
                       className={`inline-flex items-center justify-center h-7 min-w-7 px-2 rounded-full text-xs font-semibold tabular-nums shrink-0 ${
                         i.tone === "danger"
@@ -202,6 +226,7 @@ export default function AdminDashboardPage() {
                     >
                       {i.count}
                     </span>
+
                     <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-blue shrink-0 transition" />
                   </Link>
                 </li>
@@ -210,23 +235,29 @@ export default function AdminDashboardPage() {
         )}
       </section>
 
-      {/* ================= Recent students ================= */}
-      <section className="rounded-lg border border-border bg-surface">
-        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-border">
-          <div className="flex items-center gap-3 min-w-0">
+      {/* ================= RECENT STUDENTS ================= */}
+
+      <section className="rounded-lg border border-border bg-surface overflow-hidden">
+        <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center justify-between gap-3 px-4 sm:px-5 py-4 border-b border-border">
+          <div className="flex items-center gap-3 min-w-0 w-full">
             <span className="h-9 w-9 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
               <Users className="h-4 w-4" />
             </span>
+
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold">Recent enrollments</h2>
+              <h2 className="text-sm font-semibold">
+                Recent enrollments
+              </h2>
+
               <p className="text-xs text-muted-foreground mt-0.5">
                 Latest students added to the roster
               </p>
             </div>
           </div>
+
           <Link
             href="/admin/students"
-            className="text-xs text-blue hover:underline inline-flex items-center gap-1 shrink-0"
+            className="self-start min-[420px]:self-auto text-xs text-blue hover:underline inline-flex items-center gap-1 shrink-0"
           >
             View all
             <ArrowRight className="h-3 w-3" />
@@ -237,20 +268,34 @@ export default function AdminDashboardPage() {
           {recentStudents.map((s) => (
             <li
               key={s.id}
-              className="flex items-center gap-3 px-4 sm:px-5 py-3.5 hover:bg-muted/30 transition"
+              className="flex items-center gap-3 px-4 sm:px-5 py-3.5 hover:bg-muted/30 transition min-w-0"
             >
+              {/* Avatar */}
+
               <div className="h-9 w-9 rounded-full bg-navy text-white grid place-items-center text-xs font-semibold shrink-0">
                 {initials(s.name)}
               </div>
+
+              {/* Student Information */}
+
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium truncate">{s.name}</div>
+                <div className="text-sm font-medium truncate">
+                  {s.name}
+                </div>
+
                 <div className="text-xs text-muted-foreground truncate">
                   {s.grade} · {s.class}
                 </div>
               </div>
-              <div className="hidden sm:block text-xs text-muted-foreground font-mono tabular-nums shrink-0">
+
+              {/* Student ID - hidden on smaller screens */}
+
+              <div className="hidden md:block text-xs text-muted-foreground font-mono tabular-nums shrink-0">
                 {s.id}
               </div>
+
+              {/* Status */}
+
               <StatusPill status={s.status} />
             </li>
           ))}
@@ -261,7 +306,7 @@ export default function AdminDashboardPage() {
 }
 
 /* =========================================================
-   Sub-components
+   Helper Functions
    ========================================================= */
 
 function initials(name: string) {
@@ -272,6 +317,10 @@ function initials(name: string) {
     .map((p) => p[0]?.toUpperCase() ?? "")
     .join("");
 }
+
+/* =========================================================
+   KPI CARD
+   ========================================================= */
 
 function KpiCard({
   icon,
@@ -312,7 +361,7 @@ function KpiCard({
   return (
     <Link
       href={href}
-      className="group rounded-lg border border-border bg-surface p-4 sm:p-5 hover:border-blue/40 hover:shadow-sm transition block"
+      className="group rounded-lg border border-border bg-surface p-4 sm:p-5 min-w-0 hover:border-blue/40 hover:shadow-sm transition block"
     >
       <div className="flex items-start justify-between gap-3">
         <span
@@ -320,15 +369,21 @@ function KpiCard({
         >
           {icon}
         </span>
+
         <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-blue group-hover:translate-x-0.5 transition-all shrink-0" />
       </div>
+
       <div className="mt-3">
-        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="text-xs text-muted-foreground">
+          {label}
+        </div>
+
         <div
-          className={`mt-1 text-2xl sm:text-3xl font-semibold tabular-nums ${palette.value}`}
+          className={`mt-1 text-2xl sm:text-3xl font-semibold tabular-nums break-words ${palette.value}`}
         >
           {value}
         </div>
+
         {sub && (
           <div className="mt-1 text-[11px] text-muted-foreground truncate">
             {sub}
@@ -339,14 +394,23 @@ function KpiCard({
   );
 }
 
-function StatusPill({ status }: { status: "Active" | "Inactive" }) {
+/* =========================================================
+   STATUS PILL
+   ========================================================= */
+
+function StatusPill({
+  status,
+}: {
+  status: "Active" | "Inactive";
+}) {
   const cls =
     status === "Active"
       ? "bg-success-light text-success border border-success/20"
-      : "bg-inactive-bg text-inactive border border-inactive-border";
+      : "bg-inactive-bg text-inactive border-inactive-border";
+
   return (
     <span
-      className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap shrink-0 ${cls}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-medium whitespace-nowrap shrink-0 ${cls}`}
     >
       {status}
     </span>

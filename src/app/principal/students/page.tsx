@@ -11,6 +11,7 @@ import {
   GraduationCap,
   Phone,
   Search,
+  Trash2,
   TrendingUp,
   User,
   Users,
@@ -19,7 +20,7 @@ import {
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
-  principalStudents,
+  principalStudents as initialStudents,
   type PrincipalStudent,
 } from "@/data/mock/principal";
 
@@ -43,6 +44,8 @@ function initials(name: string) {
 }
 
 export default function PrincipalStudentsPage() {
+  // Added local state to support deletions
+  const [students, setStudents] = useState<PrincipalStudent[]>(initialStudents);
   const [query, setQuery] = useState("");
   const [gradeFilter, setGradeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<
@@ -50,14 +53,18 @@ export default function PrincipalStudentsPage() {
   >("all");
   const [openStudent, setOpenStudent] = useState<PrincipalStudent | null>(null);
 
+  const handleDelete = (studentId: string) => {
+    setStudents((prev) => prev.filter((s) => s.studentId !== studentId));
+  };
+
   const grades = useMemo(
-    () => Array.from(new Set(principalStudents.map((s) => s.grade))).sort(),
-    []
+    () => Array.from(new Set(students.map((s) => s.grade))).sort(),
+    [students]
   );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return principalStudents.filter((s) => {
+    return students.filter((s) => {
       const matchesQuery =
         !q ||
         s.name.toLowerCase().includes(q) ||
@@ -68,21 +75,61 @@ export default function PrincipalStudentsPage() {
         statusFilter === "all" || s.status === statusFilter;
       return matchesQuery && matchesGrade && matchesStatus;
     });
-  }, [query, gradeFilter, statusFilter]);
+  }, [query, gradeFilter, statusFilter, students]);
 
   const stats = useMemo(() => {
-    const active = principalStudents.filter((s) => s.status === "Active");
+    const active = students.filter((s) => s.status === "Active");
     const avg = active.length
       ? Math.round(active.reduce((sum, s) => sum + s.rate, 0) / active.length)
       : 0;
     const flagged = active.filter((s) => s.rate < 85).length;
     return {
-      total: principalStudents.length,
+      total: students.length,
       active: active.length,
       avg,
       flagged,
     };
-  }, []);
+  }, [students]);
+
+  // Dynamically group KPIs to satisfy the mobile grid requirements
+  const kpiData = [
+    {
+      id: "total",
+      icon: <Users className="h-4 w-4" />,
+      label: "Total students",
+      value: stats.total,
+      tone: "default" as const,
+    },
+    {
+      id: "active",
+      icon: <GraduationCap className="h-4 w-4" />,
+      label: "Active",
+      value: stats.active,
+      tone: "success" as const,
+    },
+    {
+      id: "avg",
+      icon: <TrendingUp className="h-4 w-4" />,
+      label: "Average rate",
+      value: `${stats.avg}%`,
+      tone: "blue" as const,
+    },
+    {
+      id: "flagged",
+      icon: <XCircle className="h-4 w-4" />,
+      label: "Below 85%",
+      value: stats.flagged,
+      tone: "danger" as const,
+    },
+  ];
+
+  // Mobile layout logic: 2 columns if exactly 4, 1 column if 3.
+  const kpiGridClass =
+    kpiData.length === 4
+      ? "grid-cols-2 lg:grid-cols-4"
+      : kpiData.length === 3
+      ? "grid-cols-1 md:grid-cols-3"
+      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
 
   return (
     <PageContainer
@@ -90,31 +137,10 @@ export default function PrincipalStudentsPage() {
       description="View an individual student's attendance history and details."
     >
       {/* ================= KPI row ================= */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <StatCard
-          icon={<Users className="h-4 w-4" />}
-          label="Total students"
-          value={stats.total}
-          tone="default"
-        />
-        <StatCard
-          icon={<GraduationCap className="h-4 w-4" />}
-          label="Active"
-          value={stats.active}
-          tone="success"
-        />
-        <StatCard
-          icon={<TrendingUp className="h-4 w-4" />}
-          label="Average rate"
-          value={`${stats.avg}%`}
-          tone="blue"
-        />
-        <StatCard
-          icon={<XCircle className="h-4 w-4" />}
-          label="Below 85%"
-          value={stats.flagged}
-          tone="danger"
-        />
+      <div className={`grid ${kpiGridClass} gap-3 sm:gap-4 mb-6`}>
+        {kpiData.map((kpi) => (
+          <StatCard key={kpi.id} {...kpi} />
+        ))}
       </div>
 
       {/* ================= Filters ================= */}
@@ -156,8 +182,8 @@ export default function PrincipalStudentsPage() {
       </div>
 
       {/* ================= Table ================= */}
-      <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-        <table className="w-full text-sm min-w-[900px]">
+      <div className="overflow-x-auto overflow-y-hidden rounded-lg border border-border bg-surface">
+        <table className="w-full text-sm min-w-[950px]">
           <thead>
             <tr className="bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <th className="px-4 py-3 font-medium">ID</th>
@@ -169,7 +195,7 @@ export default function PrincipalStudentsPage() {
               <th className="px-3 py-3 font-medium text-right">Late</th>
               <th className="px-4 py-3 font-medium">Rate</th>
               <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium text-right"></th>
+              <th className="px-4 py-3 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -251,13 +277,22 @@ export default function PrincipalStudentsPage() {
                   </td>
 
                   <td className="px-4 py-3 whitespace-nowrap text-right">
-                    <button
-                      onClick={() => setOpenStudent(s)}
-                      className="h-8 px-3 rounded-md border border-border text-xs hover:bg-muted inline-flex items-center gap-1"
-                    >
-                      Details
-                      <ChevronRight className="h-3 w-3" />
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => setOpenStudent(s)}
+                        className="h-8 px-3 rounded-md border border-border text-xs hover:bg-muted inline-flex items-center gap-1"
+                      >
+                        Details
+                        <ChevronRight className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(s.studentId)}
+                        className="h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-danger hover:bg-danger-light inline-flex items-center justify-center transition-colors"
+                        aria-label="Delete Student"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -267,7 +302,7 @@ export default function PrincipalStudentsPage() {
       </div>
 
       <div className="mt-3 text-xs text-muted-foreground">
-        Showing {filtered.length} of {principalStudents.length} students
+        Showing {filtered.length} of {students.length} students
       </div>
 
       {openStudent && (
@@ -505,7 +540,7 @@ function StudentDrawer({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-border p-4 shrink-0">
+        <div className="border-t border-border p-4 shrink-0 pb-6 sm:pb-4">
           <button
             onClick={onClose}
             className="w-full h-10 rounded-md border border-border text-sm font-medium hover:bg-muted inline-flex items-center justify-center gap-2"
@@ -538,7 +573,7 @@ function CountBox({
       : "text-warning";
   return (
     <div className="rounded-md border border-border bg-background p-3 text-center">
-      <div className={`inline-flex items-center gap-1 text-[11px] ${cls}`}>
+      <div className={`inline-flex items-center justify-center gap-1 text-[11px] ${cls} w-full`}>
         {icon}
         {label}
       </div>

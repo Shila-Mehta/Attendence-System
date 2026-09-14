@@ -92,14 +92,14 @@ export default function StaffLoginPage() {
   };
 
   return (
-    <main className="min-h-screen grid lg:grid-cols-2 bg-background">
+    <main className="min-h-[100dvh] grid lg:grid-cols-2 bg-background overflow-x-hidden">
       {/* ================= Left: brand panel ================= */}
-      <aside className="hidden lg:flex flex-col justify-between bg-navy text-white p-10">
+      <aside className="hidden lg:flex flex-col justify-between bg-navy text-white p-10 shrink-0">
         <div className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-lg bg-white/10 grid place-items-center">
+          <div className="h-9 w-9 rounded-lg bg-white/10 grid place-items-center shrink-0">
             <ShieldCheck className="h-5 w-5" />
           </div>
-          <span className="text-lg font-semibold tracking-tight">AttendEase</span>
+          <span className="text-lg font-semibold tracking-tight truncate">AttendEase</span>
         </div>
 
         <div className="max-w-md">
@@ -118,8 +118,8 @@ export default function StaffLoginPage() {
               "Automatic parent alerts for unexplained absence",
             ].map((line) => (
               <li key={line} className="flex items-start gap-2">
-                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-blue" />
-                {line}
+                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-blue shrink-0" />
+                <span className="min-w-0">{line}</span>
               </li>
             ))}
           </ul>
@@ -131,16 +131,16 @@ export default function StaffLoginPage() {
       </aside>
 
       {/* ================= Right: form + demo ================= */}
-      <section className="flex items-center justify-center p-6 sm:p-10">
+      <section className="flex items-center justify-center p-6 sm:p-10 min-w-0">
         <div className="w-full max-w-sm">
           <div className="lg:hidden mb-8 flex items-center gap-2">
-            <div className="h-9 w-9 rounded-lg bg-navy text-white grid place-items-center">
+            <div className="h-9 w-9 rounded-lg bg-navy text-white grid place-items-center shrink-0">
               <ShieldCheck className="h-5 w-5" />
             </div>
-            <span className="text-lg font-semibold">AttendEase</span>
+            <span className="text-lg font-semibold truncate">AttendEase</span>
           </div>
 
-          <h1 className="text-2xl font-semibold">Staff Login</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Staff Login</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Sign in with your school email address.
           </p>
@@ -160,7 +160,7 @@ export default function StaffLoginPage() {
                 autoComplete="email"
                 placeholder="you@school.edu"
                 {...register("email")}
-                className="w-full h-10 rounded-md border border-input bg-surface px-3 text-sm outline-none transition
+                className="w-full h-11 sm:h-10 rounded-md border border-input bg-surface px-3 text-sm outline-none transition
                            focus:border-blue focus:ring-2 focus:ring-blue/20"
               />
               {errors.email && (
@@ -187,19 +187,19 @@ export default function StaffLoginPage() {
                   autoComplete="current-password"
                   placeholder="••••••••"
                   {...register("password")}
-                  className="w-full h-10 rounded-md border border-input bg-surface px-3 pr-10 text-sm outline-none transition
+                  className="w-full h-11 sm:h-10 rounded-md border border-input bg-surface px-3 pr-10 text-sm outline-none transition
                              focus:border-blue focus:ring-2 focus:ring-blue/20"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((s) => !s)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-foreground"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-muted-foreground hover:text-foreground transition-colors"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
+                    <EyeOff className="h-4 w-4 shrink-0" />
                   ) : (
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-4 w-4 shrink-0" />
                   )}
                 </button>
               </div>
@@ -211,13 +211,13 @@ export default function StaffLoginPage() {
             </div>
 
             {/* Remember */}
-            <label className="flex items-center gap-2 text-sm select-none">
+            <label className="flex items-center gap-2.5 text-sm select-none cursor-pointer">
               <input
                 type="checkbox"
                 {...register("remember")}
-                className="h-4 w-4 rounded border-input accent-blue"
+                className="h-4 w-4 rounded border-input accent-blue shrink-0"
               />
-              Remember me on this device
+              <span className="text-muted-foreground">Remember me on this device</span>
             </label>
 
             {serverError && (
@@ -230,18 +230,18 @@ export default function StaffLoginPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full h-10 rounded-md bg-blue text-white text-sm font-medium
+              className="w-full h-11 sm:h-10 rounded-md bg-blue text-white text-sm font-medium
                          hover:bg-navy transition disabled:opacity-60 disabled:cursor-not-allowed
-                         inline-flex items-center justify-center gap-2"
+                         inline-flex items-center justify-center gap-2 shadow-sm"
             >
-              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isSubmitting ? "Signing in…" : "Login"}
+              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
+              <span>{isSubmitting ? "Signing in…" : "Login"}</span>
             </button>
           </form>
 
           {/* ================= One-click demo ================= */}
-          <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/20 p-4">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-3">
+          <div className="mt-6 rounded-xl border border-dashed border-border bg-muted/20 p-4">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-3 font-medium">
               Demo — tap a role to sign in instantly
             </div>
 
@@ -252,9 +252,9 @@ export default function StaffLoginPage() {
                   type="button"
                   disabled={demoLoading !== null}
                   onClick={() => demoLogin(role)}
-                  className="group w-full flex items-center gap-3 rounded-md border border-border bg-surface px-3 py-2.5 text-left transition
+                  className="group w-full flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2.5 text-left transition
                              hover:border-blue/40 hover:bg-blue-light/40
-                             disabled:opacity-60 disabled:cursor-not-allowed"
+                             disabled:opacity-60 disabled:cursor-not-allowed shadow-2xs"
                 >
                   <span className="h-8 w-8 rounded-md bg-navy text-white grid place-items-center text-[11px] font-semibold shrink-0">
                     {role.label[0]}
@@ -284,7 +284,7 @@ export default function StaffLoginPage() {
 
           <p className="mt-6 text-xs text-muted-foreground text-center">
             Are you a parent?{" "}
-            <Link href="/parent-login" className="text-blue hover:underline">
+            <Link href="/parent-login" className="text-blue hover:underline font-medium">
               Use the parent login
             </Link>
           </p>

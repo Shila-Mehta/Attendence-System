@@ -82,25 +82,27 @@ export const NAV_BY_ROLE: Record<"admin" | "office" | "principal" | "teacher", N
 export function Sidebar({
   role,
   className = "",
+  onNavigate,
 }: {
   role: keyof typeof NAV_BY_ROLE;
   className?: string;
+  onNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const sections = NAV_BY_ROLE[role];
 
   return (
     <aside
-      className={`w-64 shrink-0 bg-navy text-sidebar-foreground flex flex-col ${className}`}
+      className={`w-64 shrink-0 bg-navy text-sidebar-foreground flex flex-col h-full ${className}`}
     >
       {/* Brand */}
-      <div className="h-16 px-5 flex items-center gap-2 border-b border-sidebar-border">
-        <div className="h-8 w-8 rounded-lg bg-white/10 grid place-items-center text-white">
+      <div className="h-16 px-5 flex items-center gap-2 border-b border-sidebar-border shrink-0">
+        <div className="h-8 w-8 rounded-lg bg-white/10 grid place-items-center text-white shrink-0">
           <ShieldCheck className="h-4 w-4" />
         </div>
-        <div className="leading-tight">
-          <div className="text-sm font-semibold text-white">AttendEase</div>
-          <div className="text-[11px] text-white/50">Attendance System</div>
+        <div className="leading-tight min-w-0">
+          <div className="text-sm font-semibold text-white truncate">AttendEase</div>
+          <div className="text-[11px] text-white/50 truncate">Attendance System</div>
         </div>
       </div>
 
@@ -109,7 +111,7 @@ export function Sidebar({
         {sections.map((section, i) => (
           <div key={i} className="mb-4">
             {section.title && (
-              <div className="px-5 mb-1.5 text-[11px] uppercase tracking-wider text-white/40">
+              <div className="px-5 mb-1.5 text-[11px] uppercase tracking-wider text-white/40 font-medium">
                 {section.title}
               </div>
             )}
@@ -123,15 +125,15 @@ export function Sidebar({
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className={`mx-2 flex items-center gap-3 px-3 h-9 rounded-md text-sm transition
-                        ${
-                          isActive
-                            ? "bg-sidebar-accent text-white"
-                            : "text-white/70 hover:bg-white/5 hover:text-white"
-                        }`}
+                      onClick={onNavigate}
+                      className={`mx-2 flex items-center gap-3 px-3 h-9 rounded-md text-sm transition-colors ${
+                        isActive
+                          ? "bg-sidebar-accent text-white font-medium"
+                          : "text-white/70 hover:bg-white/5 hover:text-white"
+                      }`}
                     >
-                      <Icon className="h-4 w-4" />
-                      <span>{item.label}</span>
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{item.label}</span>
                     </Link>
                   </li>
                 );
@@ -142,7 +144,7 @@ export function Sidebar({
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-sidebar-border text-[11px] text-white/40">
+      <div className="p-4 border-t border-sidebar-border text-[11px] text-white/40 shrink-0">
         v0.1 · mock build
       </div>
     </aside>

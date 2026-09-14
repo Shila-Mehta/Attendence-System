@@ -96,17 +96,17 @@ export default function RollCallPage() {
       title="Morning Roll Call"
       description="Complete and submit the morning attendance list."
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <button
             onClick={clearAll}
-            className="h-9 px-3 rounded-md border border-border text-sm hover:bg-muted inline-flex items-center gap-1.5"
+            className="h-10 sm:h-9 px-3 rounded-md border border-border text-sm font-medium sm:font-normal hover:bg-muted inline-flex items-center justify-center gap-1.5 flex-1 sm:flex-none transition-colors"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             Clear
           </button>
           <button
             onClick={markAllPresent}
-            className="h-9 px-3 rounded-md border border-border text-sm hover:bg-muted inline-flex items-center gap-1.5"
+            className="h-10 sm:h-9 px-3 rounded-md border border-border text-sm font-medium sm:font-normal hover:bg-muted inline-flex items-center justify-center gap-1.5 flex-1 sm:flex-none transition-colors"
           >
             <UserCheck className="h-3.5 w-3.5" />
             All present
@@ -114,7 +114,7 @@ export default function RollCallPage() {
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="h-9 px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
+            className="h-10 sm:h-9 px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-1.5 w-full sm:w-auto"
           >
             <Save className="h-4 w-4" />
             Submit
@@ -142,7 +142,7 @@ export default function RollCallPage() {
       <div className="rounded-lg border border-border bg-surface mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 border-b border-border">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <span className="h-9 w-9 rounded-lg bg-blue-light text-blue grid place-items-center shrink-0">
+            <span className="h-9 w-9 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
               <Users className="h-4 w-4" />
             </span>
             <div className="min-w-0">
@@ -153,16 +153,16 @@ export default function RollCallPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:block text-xs text-muted-foreground">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
+            <div className="text-xs text-muted-foreground truncate">
               {currentClass.room} · {currentClass.teacher}
             </div>
 
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <select
                 value={classId}
                 onChange={(e) => switchClass(e.target.value)}
-                className="appearance-none h-9 pl-3 pr-9 rounded-md border border-input bg-surface text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
+                className="appearance-none w-full sm:w-auto h-10 sm:h-9 pl-3 pr-9 rounded-md border border-input bg-surface text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
               >
                 {rollCallClasses.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -176,7 +176,7 @@ export default function RollCallPage() {
         </div>
 
         {/* Counters */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
+        <div className="grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
           <Counter
             icon={<CheckCircle2 className="h-4 w-4" />}
             label="Present"
@@ -225,8 +225,8 @@ export default function RollCallPage() {
       </div>
 
       {/* Student list */}
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto overflow-y-hidden rounded-lg border border-border bg-surface">
+        <table className="w-full text-sm min-w-[550px]">
           <thead>
             <tr className="bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <th className="px-4 py-3 font-medium w-12">#</th>
@@ -251,13 +251,13 @@ export default function RollCallPage() {
       </div>
 
       {/* Footer */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+      <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-muted-foreground">
         <div>
           {counts.unmarked > 0
             ? `${counts.unmarked} student${counts.unmarked === 1 ? "" : "s"} still unmarked.`
             : "All students marked. Ready to submit."}
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="hidden sm:flex items-center gap-1.5">
           <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">
             P
           </kbd>
@@ -302,9 +302,9 @@ function Counter({
     <div className="px-4 py-3">
       <div className={`flex items-center gap-1.5 text-xs ${cls}`}>
         {icon}
-        {label}
+        <span className="truncate">{label}</span>
       </div>
-      <div className={`mt-1 text-xl font-semibold ${cls}`}>{value}</div>
+      <div className={`mt-1 text-xl font-semibold ${cls} tabular-nums`}>{value}</div>
     </div>
   );
 }
@@ -322,19 +322,19 @@ function StudentRow({
 }) {
   return (
     <tr className="border-t border-border">
-      <td className="px-4 py-3 text-xs text-muted-foreground font-mono">{index}</td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 text-xs text-muted-foreground font-mono whitespace-nowrap">{index}</td>
+      <td className="px-4 py-3 whitespace-nowrap">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-full bg-navy text-white grid place-items-center text-xs font-semibold shrink-0">
             {initials(student.name)}
           </div>
-          <div className="leading-tight">
-            <div className="font-medium">{student.name}</div>
-            <div className="text-xs text-muted-foreground font-mono">{student.id}</div>
+          <div className="leading-tight min-w-0">
+            <div className="font-medium truncate">{student.name}</div>
+            <div className="text-xs text-muted-foreground font-mono truncate">{student.id}</div>
           </div>
         </div>
       </td>
-      <td className="px-4 py-3 text-right">
+      <td className="px-4 py-3 text-right whitespace-nowrap">
         <div className="inline-flex rounded-md border border-border overflow-hidden">
           <MarkButton
             active={mark === "Present"}
@@ -398,7 +398,7 @@ function MarkButton({
     <button
       title={title}
       onClick={onClick}
-      className={`h-8 w-10 grid place-items-center text-xs font-semibold transition ${
+      className={`h-9 sm:h-8 w-11 sm:w-10 grid place-items-center text-xs font-semibold transition shrink-0 ${
         active ? activeCls : `text-muted-foreground ${hoverCls}`
       } ${withLeftBorder ? "border-l border-border" : ""}`}
     >

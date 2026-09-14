@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Clock,
   Filter,
+  Trash2,
   TrendingUp,
   XCircle,
 } from "lucide-react";
@@ -14,7 +15,7 @@ import { ParentShell } from "@/components/layout/ParentShell";
 import {
   parentAlerts,
   parentChild,
-  parentRecords,
+  parentRecords as initialRecords,
   type ParentAttendanceRecord,
 } from "@/data/mock/parent";
 
@@ -51,24 +52,27 @@ function monthLabel(key: string) {
 export default function ParentHistoryPage() {
   const unreadAlerts = parentAlerts.filter((a) => !a.read).length;
 
+  // Local state for records to enable deletion
+  const [records, setRecords] = useState<ParentAttendanceRecord[]>(initialRecords);
+
   const months = useMemo(() => {
-    const set = new Set(parentRecords.map((r) => monthKey(r.date)));
+    const set = new Set(records.map((r) => monthKey(r.date)));
     return Array.from(set).sort().reverse();
-  }, []);
+  }, [records]);
 
   const [month, setMonth] = useState<string>(months[0] ?? "");
   const [status, setStatus] = useState<StatusFilter>("all");
 
   const filtered = useMemo(() => {
-    return parentRecords
+    return records
       .filter((r) => (month ? monthKey(r.date) === month : true))
       .filter((r) => (status === "all" ? true : r.status === status))
       .sort((a, b) => (a.date < b.date ? 1 : -1));
-  }, [month, status]);
+  }, [month, status, records]);
 
   const monthRecords = useMemo(
-    () => parentRecords.filter((r) => monthKey(r.date) === month),
-    [month]
+    () => records.filter((r) => monthKey(r.date) === month),
+    [month, records]
   );
 
   const counts = useMemo(() => {
@@ -83,15 +87,15 @@ export default function ParentHistoryPage() {
   }, [monthRecords]);
 
   const overall = useMemo(() => {
-    const c = { present: 0, absent: 0, late: 0, total: parentRecords.length };
-    for (const r of parentRecords) {
+    const c = { present: 0, absent: 0, late: 0, total: records.length };
+    for (const r of records) {
       if (r.status === "Present") c.present++;
       else if (r.status === "Absent") c.absent++;
       else if (r.status === "Late") c.late++;
     }
     const rate = c.total ? Math.round((c.present / c.total) * 100) : 0;
     return { ...c, rate };
-  }, []);
+  }, [records]);
 
   const childOptions = [
     {
@@ -101,6 +105,43 @@ export default function ParentHistoryPage() {
       className: parentChild.class,
     },
   ];
+
+  const handleDelete = (date: string) => {
+    setRecords((prev) => prev.filter((r) => r.date !== date));
+  };
+
+  // Dynamically group KPIs to satisfy the mobile grid requirement
+  const kpiData = [
+    {
+      id: "present",
+      icon: <CheckCircle2 className="h-4 w-4" />,
+      label: "Present",
+      value: counts.present,
+      tone: "success" as const,
+    },
+    {
+      id: "absent",
+      icon: <XCircle className="h-4 w-4" />,
+      label: "Absent",
+      value: counts.absent,
+      tone: "danger" as const,
+    },
+    {
+      id: "late",
+      icon: <Clock className="h-4 w-4" />,
+      label: "Late",
+      value: counts.late,
+      tone: "warning" as const,
+    },
+  ];
+
+  // Mobile layout logic: 2 columns if exactly 4, 1 column if 3.
+  const kpiGridClass =
+    kpiData.length === 4
+      ? "grid-cols-2 lg:grid-cols-4"
+      : kpiData.length === 3
+      ? "grid-cols-1 md:grid-cols-3"
+      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
 
   return (
     <ParentShell
@@ -163,7 +204,7 @@ export default function ParentHistoryPage() {
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         </div>
 
-        <div className="flex items-center gap-1 overflow-x-auto">
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
           <Filter className="h-3.5 w-3.5 text-muted-foreground mr-1 shrink-0" />
           <FilterTab
             active={status === "all"}
@@ -197,25 +238,10 @@ export default function ParentHistoryPage() {
       </section>
 
       {/* ================= Month summary ================= */}
-      <section className="grid grid-cols-3 gap-3 sm:gap-4 mb-4">
-        <MonthCard
-          icon={<CheckCircle2 className="h-4 w-4" />}
-          label="Present"
-          value={counts.present}
-          tone="success"
-        />
-        <MonthCard
-          icon={<XCircle className="h-4 w-4" />}
-          label="Absent"
-          value={counts.absent}
-          tone="danger"
-        />
-        <MonthCard
-          icon={<Clock className="h-4 w-4" />}
-          label="Late"
-          value={counts.late}
-          tone="warning"
-        />
+      <section className={`grid ${kpiGridClass} gap-3 sm:gap-4 mb-4`}>
+        {kpiData.map((kpi) => (
+          <MonthCard key={kpi.id} {...kpi} />
+        ))}
       </section>
 
       {/* ================= Records ================= */}
@@ -242,16 +268,21 @@ export default function ParentHistoryPage() {
               className="hidden sm:grid items-center gap-5 px-5 py-2.5
                          border-b border-border bg-muted/20
                          text-[11px] uppercase tracking-wider text-muted-foreground
-                         sm:grid-cols-[170px_110px_minmax(0,1fr)]"
+                         sm:grid-cols-[170px_110px_minmax(0,1fr)_40px]"
             >
               <div>Date</div>
               <div>Status</div>
               <div>Details</div>
+              <div className="text-right">Action</div>
             </div>
 
             <ul className="divide-y divide-border">
               {filtered.map((r) => (
-                <RecordRow key={r.date} record={r} />
+                <RecordRow
+                  key={r.date}
+                  record={r}
+                  onDelete={() => handleDelete(r.date)}
+                />
               ))}
             </ul>
           </>
@@ -357,13 +388,19 @@ function FilterTab({
   );
 }
 
-function RecordRow({ record }: { record: ParentAttendanceRecord }) {
+function RecordRow({
+  record,
+  onDelete,
+}: {
+  record: ParentAttendanceRecord;
+  onDelete: () => void;
+}) {
   return (
     <li
       className="
         grid items-center gap-3 px-4 sm:px-5 py-3.5
         grid-cols-[1fr_auto]
-        sm:grid-cols-[170px_110px_minmax(0,1fr)] sm:gap-5
+        sm:grid-cols-[170px_110px_minmax(0,1fr)_40px] sm:gap-5
       "
     >
       {/* Col 1 — Date */}
@@ -376,13 +413,13 @@ function RecordRow({ record }: { record: ParentAttendanceRecord }) {
         </div>
       </div>
 
-      {/* Col 2 — Status pill (right on mobile, left on desktop) */}
+      {/* Col 2 — Status pill */}
       <div className="flex justify-end sm:justify-start">
         <StatusPill status={record.status} />
       </div>
 
       {/* Col 3 — Details */}
-      <div className="col-span-2 sm:col-span-1 text-sm text-muted-foreground truncate">
+      <div className="text-sm text-muted-foreground truncate">
         {record.status === "Late" && record.arrivalTime ? (
           <>
             Arrived at{" "}
@@ -396,6 +433,17 @@ function RecordRow({ record }: { record: ParentAttendanceRecord }) {
         ) : (
           "On time"
         )}
+      </div>
+
+      {/* Col 4 — Action (Delete) */}
+      <div className="flex justify-end">
+        <button
+          onClick={onDelete}
+          className="p-1.5 rounded-md text-muted-foreground hover:bg-danger-light hover:text-danger transition-colors shrink-0"
+          aria-label="Delete record"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
       </div>
     </li>
   );

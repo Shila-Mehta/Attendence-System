@@ -41,13 +41,13 @@ export default function ParentLoginPage() {
   };
 
   return (
-    <main className="min-h-screen grid lg:grid-cols-2 bg-background">
-      <aside className="hidden lg:flex flex-col justify-between bg-navy text-white p-10">
+    <main className="min-h-[100dvh] grid lg:grid-cols-2 bg-background overflow-x-hidden">
+      <aside className="hidden lg:flex flex-col justify-between bg-navy text-white p-10 shrink-0">
         <div className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-lg bg-white/10 grid place-items-center">
+          <div className="h-9 w-9 rounded-lg bg-white/10 grid place-items-center shrink-0">
             <ShieldCheck className="h-5 w-5" />
           </div>
-          <span className="text-lg font-semibold tracking-tight">AttendEase</span>
+          <span className="text-lg font-semibold tracking-tight truncate">AttendEase</span>
         </div>
 
         <div className="max-w-md">
@@ -66,8 +66,8 @@ export default function ParentLoginPage() {
               "Instant alerts for unexplained absence",
             ].map((line) => (
               <li key={line} className="flex items-start gap-2">
-                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-blue" />
-                {line}
+                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-blue shrink-0" />
+                <span className="min-w-0">{line}</span>
               </li>
             ))}
           </ul>
@@ -78,16 +78,16 @@ export default function ParentLoginPage() {
         </p>
       </aside>
 
-      <section className="flex items-center justify-center p-6 sm:p-10">
+      <section className="flex items-center justify-center p-6 sm:p-10 min-w-0">
         <div className="w-full max-w-sm">
           <div className="lg:hidden mb-8 flex items-center gap-2">
-            <div className="h-9 w-9 rounded-lg bg-navy text-white grid place-items-center">
+            <div className="h-9 w-9 rounded-lg bg-navy text-white grid place-items-center shrink-0">
               <ShieldCheck className="h-5 w-5" />
             </div>
-            <span className="text-lg font-semibold">AttendEase</span>
+            <span className="text-lg font-semibold truncate">AttendEase</span>
           </div>
 
-          <h1 className="text-2xl font-semibold">Parent Login</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Parent Login</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Use the phone number registered with the school.
           </p>
@@ -98,7 +98,7 @@ export default function ParentLoginPage() {
                 Phone number
               </label>
               <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground shrink-0" />
                 <input
                   id="phone"
                   type="tel"
@@ -106,7 +106,7 @@ export default function ParentLoginPage() {
                   autoComplete="tel"
                   placeholder="+92 300 1234567"
                   {...register("phone")}
-                  className="w-full h-10 rounded-md border border-input bg-surface pl-9 pr-3 text-sm outline-none transition
+                  className="w-full h-11 sm:h-10 rounded-md border border-input bg-surface pl-9 pr-3 text-sm outline-none transition
                              focus:border-blue focus:ring-2 focus:ring-blue/20"
                 />
               </div>
@@ -120,7 +120,7 @@ export default function ParentLoginPage() {
                 4-digit PIN
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground shrink-0" />
                 <input
                   id="pin"
                   type={showPin ? "text" : "password"}
@@ -129,13 +129,13 @@ export default function ParentLoginPage() {
                   maxLength={4}
                   placeholder="••••"
                   {...register("pin")}
-                  className="w-full h-10 rounded-md border border-input bg-surface pl-9 pr-10 text-sm tracking-widest outline-none transition
+                  className="w-full h-11 sm:h-10 rounded-md border border-input bg-surface pl-9 pr-12 text-sm tracking-widest outline-none transition
                              focus:border-blue focus:ring-2 focus:ring-blue/20"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPin((s) => !s)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {showPin ? "Hide" : "Show"}
                 </button>
@@ -148,25 +148,27 @@ export default function ParentLoginPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full h-10 rounded-md bg-blue text-white text-sm font-medium
+              className="w-full h-11 sm:h-10 rounded-md bg-blue text-white text-sm font-medium
                          hover:bg-navy transition disabled:opacity-60 disabled:cursor-not-allowed
-                         inline-flex items-center justify-center gap-2"
+                         inline-flex items-center justify-center gap-2 shadow-sm"
             >
-              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isSubmitting ? "Signing in…" : "Login"}
+              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
+              <span>{isSubmitting ? "Signing in…" : "Login"}</span>
             </button>
 
             <p className="text-[11px] text-muted-foreground text-center">
               Demo — any phone number + any 4-digit PIN works.
             </p>
 
-            <Link
-              href="/staff-login"
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              I&apos;m a staff member
-            </Link>
+            <div className="pt-2">
+              <Link
+                href="/staff-login"
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
+                <span>I&apos;m a staff member</span>
+              </Link>
+            </div>
           </form>
         </div>
       </section>

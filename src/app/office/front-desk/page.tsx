@@ -11,6 +11,7 @@ import {
   User,
   X,
   ClipboardList,
+  Trash2,
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
@@ -61,6 +62,10 @@ export default function FrontDeskPage() {
     setCreating(false);
   };
 
+  const handleDelete = (id: string) => {
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+  };
+
   return (
     <PageContainer
       title="Front-Desk Log"
@@ -68,7 +73,7 @@ export default function FrontDeskPage() {
       actions={
         <button
           onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-2 h-9 px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition"
+          className="inline-flex items-center justify-center gap-2 h-9 px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition w-full sm:w-auto"
         >
           <Plus className="h-4 w-4" />
           New entry
@@ -76,7 +81,7 @@ export default function FrontDeskPage() {
       }
     >
       {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5 sm:mb-6">
         <StatCard
           icon={<ClipboardList className="h-4 w-4" />}
           label="Total entries"
@@ -104,8 +109,8 @@ export default function FrontDeskPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="relative flex-1 min-w-[220px] max-w-md">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-4">
+        <div className="relative w-full sm:flex-1 sm:min-w-[220px] sm:max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             value={query}
@@ -115,24 +120,26 @@ export default function FrontDeskPage() {
           />
         </div>
 
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value as "all" | EntryType)}
-          className="h-9 rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
-        >
-          <option value="all">All types</option>
-          <option value="Late Arrival">Late Arrival</option>
-          <option value="Early Collection">Early Collection</option>
-        </select>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as "all" | EntryType)}
+            className="flex-1 sm:flex-none h-9 rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
+          >
+            <option value="all">All types</option>
+            <option value="Late Arrival">Late Arrival</option>
+            <option value="Early Collection">Early Collection</option>
+          </select>
 
-        <div className="relative">
-          <CalendarDays className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="h-9 pl-9 pr-3 rounded-md border border-input bg-surface text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
-          />
+          <div className="relative flex-1 sm:flex-none">
+            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="w-full h-9 pl-9 pr-3 rounded-md border border-input bg-surface text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
+            />
+          </div>
         </div>
 
         {(query || typeFilter !== "all" || dateFilter) && (
@@ -142,7 +149,7 @@ export default function FrontDeskPage() {
               setTypeFilter("all");
               setDateFilter("");
             }}
-            className="h-9 px-3 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted"
+            className="h-9 px-3 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted w-full sm:w-auto text-left sm:text-center"
           >
             Clear filters
           </button>
@@ -150,8 +157,8 @@ export default function FrontDeskPage() {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto overflow-y-hidden rounded-lg border border-border bg-surface">
+        <table className="w-full text-sm min-w-[900px]">
           <thead>
             <tr className="bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <th className="px-4 py-3 font-medium">ID</th>
@@ -161,13 +168,14 @@ export default function FrontDeskPage() {
               <th className="px-4 py-3 font-medium">Reason</th>
               <th className="px-4 py-3 font-medium">Person</th>
               <th className="px-4 py-3 font-medium">Logged by</th>
+              <th className="px-4 py-3 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={8}
                   className="px-4 py-12 text-center text-sm text-muted-foreground"
                 >
                   No entries match your filters.
@@ -202,7 +210,7 @@ export default function FrontDeskPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                  <td className="px-4 py-3 whitespace-nowrap text-muted-foreground max-w-[200px] truncate">
                     {e.reason}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
@@ -215,6 +223,15 @@ export default function FrontDeskPage() {
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">
                     {e.loggedBy}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-right">
+                    <button
+                      onClick={() => handleDelete(e.id)}
+                      className="p-1.5 rounded-md text-muted-foreground hover:bg-danger-light hover:text-danger transition-colors inline-flex items-center justify-center shrink-0"
+                      aria-label="Delete entry"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </td>
                 </tr>
               ))
@@ -272,7 +289,7 @@ function StatCard({
     <div className="rounded-lg border border-border bg-surface p-4">
       <div className={`flex items-center gap-1.5 text-xs ${cls}`}>
         {icon}
-        {label}
+        <span className="truncate">{label}</span>
       </div>
       <div className={`mt-1 text-2xl font-semibold ${cls}`}>{value}</div>
     </div>
@@ -378,12 +395,12 @@ function NewEntryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      <div className="relative w-full max-w-lg rounded-lg bg-surface border border-border shadow-xl max-h-[90vh] flex flex-col">
+      <div className="relative w-full max-w-lg rounded-xl bg-surface border border-border shadow-xl max-h-[95dvh] sm:max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 h-14 border-b border-border shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-5 h-14 border-b border-border shrink-0">
           <h2 className="text-sm font-semibold">New front-desk entry</h2>
           <button
             onClick={onClose}
@@ -395,7 +412,7 @@ function NewEntryModal({
         </div>
 
         {/* Body */}
-        <div className="p-5 space-y-5 overflow-y-auto">
+        <div className="p-4 sm:p-5 space-y-5 overflow-y-auto">
           {/* Type toggle */}
           <div>
             <div className="text-xs font-medium text-muted-foreground mb-1.5">
@@ -443,7 +460,7 @@ function NewEntryModal({
                 onChange={(e) => setGrade(e.target.value)}
                 className={inputCls}
               >
-                {["Grade 1","Grade 2","Grade 3","Grade 4","Grade 5","Grade 6"].map((g) => (
+                {["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"].map((g) => (
                   <option key={g}>{g}</option>
                 ))}
               </select>
@@ -542,9 +559,9 @@ function NewEntryModal({
           </div>
 
           {/* Notice */}
-          <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground">
-            <User className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            <div>
+          <div className="flex items-start gap-2.5 rounded-md border border-border bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
+            <User className="h-4 w-4 mt-0.5 shrink-0" />
+            <div className="leading-relaxed">
               Logged against your account as{" "}
               <span className="text-foreground font-medium">Junaid Akhtar</span>.
               Parents of early collections are notified automatically.
@@ -553,16 +570,16 @@ function NewEntryModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-5 h-16 border-t border-border shrink-0">
+        <div className="flex flex-col-reverse sm:flex-row items-center sm:justify-end gap-2.5 px-4 sm:px-5 py-3 sm:py-0 sm:h-16 border-t border-border shrink-0">
           <button
             onClick={onClose}
-            className="h-9 px-4 rounded-md border border-border text-sm hover:bg-muted"
+            className="w-full sm:w-auto h-10 sm:h-9 px-4 rounded-md border border-border text-sm font-medium sm:font-normal hover:bg-muted transition"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="h-9 px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition"
+            className="w-full sm:w-auto h-10 sm:h-9 px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition"
           >
             Save entry
           </button>
@@ -594,20 +611,21 @@ function TypeToggle({
     <button
       type="button"
       onClick={onClick}
-      className={`h-12 rounded-md border text-sm font-medium transition inline-flex items-center justify-center gap-2 ${
+      className={`h-12 rounded-md border text-sm font-medium transition flex items-center justify-center gap-2 ${
         active
           ? activeCls
           : "border-border text-muted-foreground hover:bg-muted"
       }`}
     >
       {icon}
-      {label}
+      <span className="hidden sm:inline">{label}</span>
+      <span className="sm:hidden">{label.split(" ")[0]}</span>
     </button>
   );
 }
 
 const inputCls =
-  "w-full h-9 rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20";
+  "w-full h-10 sm:h-9 rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20";
 
 function Field({
   label,

@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   History,
   FileEdit,
+  Trash2,
   X,
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -41,8 +42,7 @@ export default function CorrectionsPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return requests.filter((r) => {
-      const matchesFilter =
-        filter === "all" || r.status === filter;
+      const matchesFilter = filter === "all" || r.status === filter;
       const matchesQuery =
         !q ||
         r.studentName.toLowerCase().includes(q) ||
@@ -77,36 +77,59 @@ export default function CorrectionsPage() {
     console.log("CORRECTION DECISION (mock):", { id, status, reviewerNote });
   };
 
+  const handleDelete = (id: string) => {
+    setRequests((prev) => prev.filter((r) => r.id !== id));
+    if (active?.id === id) setActive(null);
+  };
+
+  // Dynamically group KPIs to satisfy the mobile grid requirements
+  const kpiData = [
+    {
+      id: "pending",
+      icon: <Clock className="h-4 w-4" />,
+      label: "Pending review",
+      value: counts.pending,
+      tone: "warning" as const,
+    },
+    {
+      id: "approved",
+      icon: <CheckCircle2 className="h-4 w-4" />,
+      label: "Approved",
+      value: counts.approved,
+      tone: "success" as const,
+    },
+    {
+      id: "rejected",
+      icon: <XCircle className="h-4 w-4" />,
+      label: "Rejected",
+      value: counts.rejected,
+      tone: "danger" as const,
+    },
+  ];
+
+  // Mobile layout logic: 2 columns if exactly 4, 1 column if 3.
+  const kpiGridClass =
+    kpiData.length === 4
+      ? "grid-cols-2 lg:grid-cols-4"
+      : kpiData.length === 3
+      ? "grid-cols-1 md:grid-cols-3"
+      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
+
   return (
     <PageContainer
       title="Attendance Corrections"
       description="Correct attendance records with a required reason."
     >
       {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
-        <StatCard
-          icon={<Clock className="h-4 w-4" />}
-          label="Pending review"
-          value={counts.pending}
-          tone="warning"
-        />
-        <StatCard
-          icon={<CheckCircle2 className="h-4 w-4" />}
-          label="Approved"
-          value={counts.approved}
-          tone="success"
-        />
-        <StatCard
-          icon={<XCircle className="h-4 w-4" />}
-          label="Rejected"
-          value={counts.rejected}
-          tone="danger"
-        />
+      <div className={`grid ${kpiGridClass} gap-3 sm:gap-4 mb-6`}>
+        {kpiData.map((kpi) => (
+          <StatCard key={kpi.id} {...kpi} />
+        ))}
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="relative flex-1 min-w-[220px] max-w-md">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-4">
+        <div className="relative flex-1 min-w-[220px] sm:max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             value={query}
@@ -116,7 +139,7 @@ export default function CorrectionsPage() {
           />
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
           <FilterTab
             active={filter === "all"}
             onClick={() => setFilter("all")}
@@ -149,8 +172,8 @@ export default function CorrectionsPage() {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto overflow-y-hidden rounded-lg border border-border bg-surface">
+        <table className="w-full text-sm min-w-[900px]">
           <thead>
             <tr className="bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <th className="px-4 py-3 font-medium">ID</th>
@@ -159,7 +182,7 @@ export default function CorrectionsPage() {
               <th className="px-4 py-3 font-medium">Change</th>
               <th className="px-4 py-3 font-medium">Requested by</th>
               <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium text-right"></th>
+              <th className="px-4 py-3 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -211,13 +234,22 @@ export default function CorrectionsPage() {
                     <StatusBadge status={r.status} />
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-right">
-                    <button
-                      onClick={() => setActive(r)}
-                      className="h-8 px-3 rounded-md border border-border text-xs hover:bg-muted inline-flex items-center gap-1"
-                    >
-                      {r.status === "Pending" ? "Review" : "View"}
-                      <ArrowRight className="h-3 w-3" />
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => setActive(r)}
+                        className="h-8 px-3 rounded-md border border-border text-xs hover:bg-muted inline-flex items-center gap-1"
+                      >
+                        {r.status === "Pending" ? "Review" : "View"}
+                        <ArrowRight className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(r.id)}
+                        className="h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-danger hover:bg-danger-light inline-flex items-center justify-center transition-colors shrink-0"
+                        aria-label="Delete request"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -273,11 +305,11 @@ function StatCard({
       : "text-danger";
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
-      <div className={`flex items-center gap-1.5 text-xs ${cls}`}>
+      <div className={`flex items-center justify-center sm:justify-start gap-1.5 text-xs ${cls}`}>
         {icon}
         {label}
       </div>
-      <div className={`mt-1 text-2xl font-semibold ${cls}`}>{value}</div>
+      <div className={`mt-1 text-2xl text-center sm:text-left font-semibold ${cls}`}>{value}</div>
     </div>
   );
 }
@@ -296,7 +328,7 @@ function FilterTab({
   return (
     <button
       onClick={onClick}
-      className={`h-8 px-3 rounded-md text-xs font-medium transition inline-flex items-center gap-1.5 ${
+      className={`h-8 px-3 rounded-md text-xs font-medium transition inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
         active ? "bg-navy text-white" : "text-muted-foreground hover:bg-muted"
       }`}
     >
@@ -394,9 +426,9 @@ function ReviewDrawer({
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      <aside className="relative w-full max-w-md h-full bg-surface border-l border-border shadow-xl flex flex-col">
+      <aside className="relative w-full sm:max-w-md h-full bg-surface sm:border-l border-border shadow-xl flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border">
+        <div className="flex items-start justify-between gap-3 px-4 sm:px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-start gap-3 min-w-0">
             <span className="h-10 w-10 rounded-lg bg-blue-light text-blue grid place-items-center shrink-0">
               <FileEdit className="h-5 w-5" />
@@ -412,7 +444,7 @@ function ReviewDrawer({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-md hover:bg-muted"
+            className="p-1.5 rounded-md hover:bg-muted shrink-0"
             aria-label="Close"
           >
             <X className="h-4 w-4" />
@@ -420,7 +452,7 @@ function ReviewDrawer({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
           <div className="flex items-center justify-between">
             <StatusBadge status={request.status} />
             <span className="text-xs text-muted-foreground">
@@ -434,14 +466,14 @@ function ReviewDrawer({
               Requested change
             </div>
             <div className="flex items-center justify-center gap-3">
-              <div className="text-center">
+              <div className="text-center flex-1">
                 <AttendancePill status={request.currentStatus} />
                 <div className="text-[11px] text-muted-foreground mt-1">
                   Current
                 </div>
               </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              <div className="text-center">
+              <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="text-center flex-1">
                 <AttendancePill status={request.requestedStatus} />
                 <div className="text-[11px] text-muted-foreground mt-1">
                   Requested
@@ -564,7 +596,7 @@ function ReviewDrawer({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-border p-4 space-y-2">
+        <div className="border-t border-border p-4 pb-6 sm:pb-4 space-y-2 shrink-0">
           {isPending && mode === "idle" && (
             <>
               <button
@@ -593,9 +625,9 @@ function ReviewDrawer({
               }`}
             >
               {request.status === "Approved" ? (
-                <ShieldCheck className="h-3.5 w-3.5 mt-0.5" />
+                <ShieldCheck className="h-3.5 w-3.5 mt-0.5 shrink-0" />
               ) : (
-                <AlertTriangle className="h-3.5 w-3.5 mt-0.5" />
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
               )}
               <div>
                 <div className="font-medium">

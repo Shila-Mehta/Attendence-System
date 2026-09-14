@@ -8,8 +8,8 @@ import {
   Info,
   Paperclip,
   Send,
+  Trash2,
   Upload,
-  X,
 } from "lucide-react";
 import { ParentShell } from "@/components/layout/ParentShell";
 import {
@@ -103,7 +103,7 @@ export default function ReportAbsencePage() {
         />
       ) : (
         <>
-          <section className="mb-6">
+          <section className="mb-5 sm:mb-6">
             <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
               Report an absence
             </h1>
@@ -112,9 +112,9 @@ export default function ReportAbsencePage() {
             </p>
           </section>
 
-          <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[1fr_320px]">
+          <form onSubmit={handleSubmit} className="grid gap-5 sm:gap-6 lg:grid-cols-[1fr_320px]">
             {/* Main column */}
-            <div className="space-y-6">
+            <div className="space-y-5 sm:space-y-6">
               {/* Child (read-only) */}
               <Card>
                 <CardHeader
@@ -123,7 +123,7 @@ export default function ReportAbsencePage() {
                   desc="Absence is reported for this student."
                 />
                 <div className="flex items-center gap-3">
-                  <div className="h-11 w-11 rounded-full bg-navy text-white grid place-items-center text-sm font-semibold">
+                  <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-navy text-white grid place-items-center text-sm font-semibold shrink-0">
                     {parentChild.name
                       .split(" ")
                       .filter(Boolean)
@@ -131,9 +131,9 @@ export default function ReportAbsencePage() {
                       .map((p) => p[0]?.toUpperCase())
                       .join("")}
                   </div>
-                  <div className="leading-tight">
-                    <div className="text-sm font-medium">{parentChild.name}</div>
-                    <div className="text-xs text-muted-foreground">
+                  <div className="leading-tight min-w-0">
+                    <div className="text-sm font-medium truncate">{parentChild.name}</div>
+                    <div className="text-xs text-muted-foreground truncate">
                       {parentChild.grade} · {parentChild.class} · {parentChild.room}
                     </div>
                   </div>
@@ -156,7 +156,7 @@ export default function ReportAbsencePage() {
                         key={r.id}
                         type="button"
                         onClick={() => setReason(r.id)}
-                        className={`rounded-lg border p-4 text-left transition ${
+                        className={`rounded-lg border p-3 sm:p-4 text-left transition ${
                           active
                             ? "border-blue bg-blue-light/60 ring-2 ring-blue/30"
                             : "border-border hover:border-blue/40 hover:bg-muted/40"
@@ -170,7 +170,7 @@ export default function ReportAbsencePage() {
                             </div>
                           </div>
                           <span
-                            className={`mt-0.5 h-4 w-4 rounded-full border-2 transition ${
+                            className={`mt-0.5 h-4 w-4 rounded-full border-2 transition shrink-0 ${
                               active
                                 ? "border-blue bg-blue"
                                 : "border-muted-foreground/40"
@@ -249,27 +249,27 @@ export default function ReportAbsencePage() {
                     Attachment (optional)
                   </div>
                   {file ? (
-                    <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
-                      <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="flex-1 truncate">{file}</span>
+                    <div className="flex items-center gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5 text-xs">
+                      <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="flex-1 truncate font-medium">{file}</span>
                       <button
                         type="button"
                         onClick={() => setFile(null)}
-                        className="p-1 rounded hover:bg-muted"
+                        className="p-1.5 rounded-md text-muted-foreground hover:bg-danger-light hover:text-danger transition-colors shrink-0"
                         aria-label="Remove attachment"
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   ) : (
                     <button
                       type="button"
                       onClick={() => setFile("medical-note.pdf")}
-                      className="w-full rounded-md border border-dashed border-border bg-muted/20 px-4 py-4 text-center hover:border-blue/50 hover:bg-blue-light/30 transition"
+                      className="w-full rounded-md border border-dashed border-border bg-muted/20 px-4 py-6 text-center hover:border-blue/50 hover:bg-blue-light/30 transition group"
                     >
-                      <Upload className="h-4 w-4 mx-auto text-muted-foreground" />
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Click to attach a doctor&apos;s note or photo (mock)
+                      <Upload className="h-5 w-5 mx-auto text-muted-foreground group-hover:text-blue transition-colors" />
+                      <div className="mt-2 text-xs text-muted-foreground group-hover:text-blue transition-colors">
+                        Click to attach a doctor&apos;s note or photo
                       </div>
                     </button>
                   )}
@@ -279,9 +279,9 @@ export default function ReportAbsencePage() {
 
             {/* Side column */}
             <aside className="space-y-4 lg:sticky lg:top-6 h-fit">
-              <div className="rounded-lg border border-border bg-surface p-5">
+              <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
                 <h3 className="text-sm font-semibold">Summary</h3>
-                <dl className="mt-3 space-y-2 text-sm">
+                <dl className="mt-4 space-y-3 text-sm">
                   <Row label="Student" value={parentChild.name} />
                   <Row
                     label="Reason"
@@ -310,12 +310,12 @@ export default function ReportAbsencePage() {
 
                 <button
                   type="submit"
-                  className="mt-5 w-full h-10 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition inline-flex items-center justify-center gap-2"
+                  className="mt-6 w-full h-10 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition inline-flex items-center justify-center gap-2"
                 >
                   <Send className="h-4 w-4" />
                   Submit report
                 </button>
-                <p className="mt-2 text-[11px] text-muted-foreground text-center">
+                <p className="mt-3 text-[11px] text-muted-foreground text-center">
                   The office will be notified immediately.
                 </p>
               </div>
@@ -324,7 +324,7 @@ export default function ReportAbsencePage() {
                 <div className="font-medium text-foreground mb-1">
                   When to report
                 </div>
-                <ul className="space-y-1">
+                <ul className="space-y-1.5">
                   <li>• Before 09:00 on the day of absence.</li>
                   <li>• For planned appointments, at least 1 day in advance.</li>
                   <li>• For multi-day illness, update dates when you know more.</li>
@@ -345,7 +345,7 @@ const inputCls =
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <section className="rounded-lg border border-border bg-surface p-5">
+    <section className="rounded-lg border border-border bg-surface p-4 sm:p-5">
       {children}
     </section>
   );
@@ -395,9 +395,9 @@ function Field({
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-3">
+    <div className="flex items-start justify-between gap-4">
       <dt className="text-xs text-muted-foreground shrink-0">{label}</dt>
-      <dd className="text-xs text-right truncate">{value}</dd>
+      <dd className="text-xs font-medium text-right truncate">{value}</dd>
     </div>
   );
 }
@@ -421,8 +421,8 @@ function SuccessState({
   onReset: () => void;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-8 text-center">
-      <div className="mx-auto h-14 w-14 rounded-full bg-success-light text-success grid place-items-center">
+    <div className="rounded-lg border border-border bg-surface p-6 sm:p-8 text-center">
+      <div className="mx-auto h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-success-light text-success grid place-items-center">
         <CheckCircle2 className="h-6 w-6" />
       </div>
       <h2 className="mt-4 text-lg font-semibold">Absence reported</h2>
@@ -444,10 +444,10 @@ function SuccessState({
         <SummaryLine label="School days" value={String(dayCount)} />
       </div>
 
-      <div className="mt-6 flex items-center justify-center gap-2">
+      <div className="mt-6 sm:mt-8 flex items-center justify-center">
         <button
           onClick={onReset}
-          className="h-9 px-4 rounded-md border border-border text-sm hover:bg-muted"
+          className="w-full sm:w-auto h-9 px-4 rounded-md border border-border text-sm font-medium hover:bg-muted transition"
         >
           Report another absence
         </button>
@@ -458,9 +458,9 @@ function SuccessState({
 
 function SummaryLine({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between px-4 py-2.5">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium">{value}</span>
+    <div className="flex items-center justify-between px-4 py-3">
+      <span className="text-xs text-muted-foreground shrink-0">{label}</span>
+      <span className="text-sm font-medium truncate ml-3">{value}</span>
     </div>
   );
 }

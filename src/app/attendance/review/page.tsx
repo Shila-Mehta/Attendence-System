@@ -13,7 +13,6 @@ import {
   RotateCcw,
   Users,
   AlertTriangle,
-  ChevronDown,
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
@@ -89,19 +88,19 @@ export default function ReviewPage() {
       title="Post-Submit Review"
       description="Review submitted attendance and manage late / left-early actions."
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {dirty && (
             <>
               <button
                 onClick={handleDiscard}
-                className="h-9 px-3 rounded-md border border-border text-sm hover:bg-muted inline-flex items-center gap-1.5"
+                className="h-10 sm:h-9 px-3 rounded-md border border-border text-sm font-medium sm:font-normal hover:bg-muted inline-flex items-center justify-center gap-1.5 flex-1 sm:flex-none transition-colors"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 Discard
               </button>
               <button
                 onClick={handleSave}
-                className="h-9 px-3 rounded-md border border-border text-sm hover:bg-muted inline-flex items-center gap-1.5"
+                className="h-10 sm:h-9 px-3 rounded-md border border-border text-sm font-medium sm:font-normal hover:bg-muted inline-flex items-center justify-center gap-1.5 flex-1 sm:flex-none transition-colors"
               >
                 <Save className="h-3.5 w-3.5" />
                 Save
@@ -110,7 +109,7 @@ export default function ReviewPage() {
           )}
           <button
             onClick={toggleLock}
-            className={`h-9 px-4 rounded-md text-sm font-medium transition inline-flex items-center gap-1.5 ${
+            className={`h-10 sm:h-9 px-4 rounded-md text-sm font-medium transition inline-flex items-center justify-center gap-1.5 w-full sm:w-auto ${
               locked
                 ? "border border-border hover:bg-muted"
                 : "bg-blue text-white hover:bg-navy"
@@ -134,7 +133,7 @@ export default function ReviewPage() {
       {/* Banners */}
       {justSaved && (
         <div className="mb-4 flex items-center gap-2 rounded-md border border-success/30 bg-success-light text-success px-4 py-2.5 text-sm">
-          <CheckCircle2 className="h-4 w-4" />
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
           Changes saved. (Mock)
         </div>
       )}
@@ -156,11 +155,11 @@ export default function ReviewPage() {
       <div className="rounded-lg border border-border bg-surface mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 border-b border-border">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <span className="h-9 w-9 rounded-lg bg-blue-light text-blue grid place-items-center shrink-0">
+            <span className="h-9 w-9 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
               <Users className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground truncate">
                 {seed.grade} · {seed.className} · {seed.room}
               </div>
               <div className="text-sm font-medium truncate">
@@ -168,13 +167,13 @@ export default function ReviewPage() {
               </div>
             </div>
           </div>
-          <div className="text-xs text-muted-foreground font-mono">
+          <div className="text-xs text-muted-foreground font-mono self-start sm:self-auto">
             {seed.id}
           </div>
         </div>
 
         {/* Counters */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
+        <div className="grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
           <Counter
             icon={<CheckCircle2 className="h-4 w-4" />}
             label="Present"
@@ -203,8 +202,8 @@ export default function ReviewPage() {
       </div>
 
       {/* Attendance table */}
-      <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto overflow-y-hidden rounded-lg border border-border bg-surface">
+        <table className="w-full text-sm min-w-[750px]">
           <thead>
             <tr className="bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <th className="px-4 py-3 font-medium">Student</th>
@@ -217,38 +216,38 @@ export default function ReviewPage() {
           <tbody>
             {rows.map((r) => (
               <tr key={r.studentId} className="border-t border-border align-top">
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded-full bg-navy text-white grid place-items-center text-xs font-semibold shrink-0">
                       {initials(r.name)}
                     </div>
-                    <div className="leading-tight">
-                      <div className="font-medium">{r.name}</div>
-                      <div className="text-xs text-muted-foreground font-mono">
+                    <div className="leading-tight min-w-0">
+                      <div className="font-medium truncate">{r.name}</div>
+                      <div className="text-xs text-muted-foreground font-mono truncate">
                         {r.studentId}
                       </div>
                     </div>
                   </div>
                 </td>
 
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 whitespace-nowrap">
                   <StatusPill status={r.status} />
                 </td>
 
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 whitespace-nowrap">
                   <div className="space-y-1 text-xs">
                     {r.status === "Late" && r.arrivalTime && (
                       <div className="inline-flex items-center gap-1.5 text-warning">
-                        <Clock className="h-3 w-3" />
+                        <Clock className="h-3 w-3 shrink-0" />
                         Arrived {r.arrivalTime}
                       </div>
                     )}
                     {r.leftEarly && r.leftEarlyTime && (
                       <div className="inline-flex items-center gap-1.5 text-muted-foreground">
-                        <LogOut className="h-3 w-3" />
+                        <LogOut className="h-3 w-3 shrink-0" />
                         Left {r.leftEarlyTime}
                         {r.leftEarlyReason && (
-                          <span className="text-muted-foreground">
+                          <span className="text-muted-foreground truncate max-w-[120px]">
                             · {r.leftEarlyReason}
                           </span>
                         )}
@@ -260,7 +259,7 @@ export default function ReviewPage() {
                   </div>
                 </td>
 
-                <td className="px-4 py-3 max-w-[240px]">
+                <td className="px-4 py-3 max-w-[200px]">
                   {editingNote === r.studentId ? (
                     <NoteEditor
                       initial={r.note ?? ""}
@@ -273,22 +272,22 @@ export default function ReviewPage() {
                   ) : r.note ? (
                     <button
                       onClick={() => setEditingNote(r.studentId)}
-                      className="text-xs text-left text-foreground hover:underline"
+                      className="text-xs text-left text-foreground hover:underline line-clamp-2"
                     >
                       {r.note}
                     </button>
                   ) : (
                     <button
                       onClick={() => setEditingNote(r.studentId)}
-                      className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                      className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 whitespace-nowrap"
                     >
-                      <StickyNote className="h-3 w-3" />
+                      <StickyNote className="h-3 w-3 shrink-0" />
                       Add note
                     </button>
                   )}
                 </td>
 
-                <td className="px-4 py-3 text-right">
+                <td className="px-4 py-3 text-right whitespace-nowrap">
                   <div className="flex items-center justify-end gap-1">
                     <ActionButton
                       label="Present"
@@ -328,7 +327,7 @@ export default function ReviewPage() {
                     />
                     <button
                       onClick={() => setLeftEarlyFor(r.studentId)}
-                      className={`ml-1 h-8 px-2 rounded-md border text-xs inline-flex items-center gap-1 ${
+                      className={`ml-1 h-8 px-2 rounded-md border text-xs inline-flex items-center gap-1 shrink-0 transition-colors ${
                         r.leftEarly
                           ? "border-muted-foreground/40 bg-muted text-foreground"
                           : "border-border text-muted-foreground hover:bg-muted"
@@ -336,7 +335,7 @@ export default function ReviewPage() {
                       title={r.leftEarly ? "Edit left-early" : "Mark left-early"}
                     >
                       <LogOut className="h-3 w-3" />
-                      Left early
+                      <span className="hidden sm:inline">Left early</span>
                     </button>
                   </div>
                 </td>
@@ -411,9 +410,11 @@ function Counter({
     <div className="px-4 py-3">
       <div className={`flex items-center gap-1.5 text-xs ${cls}`}>
         {icon}
-        {label}
+        <span className="truncate">{label}</span>
       </div>
-      <div className={`mt-1 text-xl font-semibold ${cls}`}>{value}</div>
+      <div className={`mt-1 text-xl font-semibold ${cls} tabular-nums`}>
+        {value}
+      </div>
     </div>
   );
 }
@@ -426,7 +427,7 @@ function StatusPill({ status }: { status: ReviewStatus }) {
       ? "bg-danger-light text-danger"
       : "bg-warning-light text-warning";
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${cls}`}>
       {status}
     </span>
   );
@@ -460,7 +461,7 @@ function ActionButton({
   return (
     <button
       onClick={onClick}
-      className={`h-8 px-2.5 rounded-md border text-xs font-medium transition ${
+      className={`h-8 px-2.5 rounded-md border text-xs font-medium transition shrink-0 ${
         active ? activeCls : `border-border text-muted-foreground ${hoverCls}`
       }`}
     >
@@ -480,7 +481,7 @@ function NoteEditor({
 }) {
   const [value, setValue] = useState(initial);
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5 min-w-[160px]">
       <textarea
         autoFocus
         value={value}
@@ -527,21 +528,21 @@ function LeftEarlyModal({
   const canSave = Boolean(time) && Boolean(reason);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-sm rounded-lg bg-surface border border-border shadow-xl">
-        <div className="flex items-center justify-between px-5 h-14 border-b border-border">
+      <div className="relative w-full max-w-sm rounded-xl bg-surface border border-border shadow-xl max-h-[95dvh] flex flex-col">
+        <div className="flex items-center justify-between px-4 sm:px-5 h-14 border-b border-border shrink-0">
           <h2 className="text-sm font-semibold">Mark left early</h2>
           <button
             onClick={onClose}
-            className="text-xs text-muted-foreground hover:text-foreground"
+            className="text-xs text-muted-foreground hover:text-foreground p-1.5 rounded-md"
           >
             Close
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
-          <div className="text-sm text-muted-foreground">
+        <div className="p-4 sm:p-5 space-y-4 overflow-y-auto">
+          <div className="text-sm text-muted-foreground truncate">
             Student: <span className="text-foreground font-medium">{studentName}</span>
           </div>
 
@@ -553,7 +554,7 @@ function LeftEarlyModal({
               type="time"
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="h-9 w-full rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
+              className="h-10 sm:h-9 w-full rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
             />
           </div>
 
@@ -564,7 +565,7 @@ function LeftEarlyModal({
             <select
               value={reason}
               onChange={(e) => setReason(e.target.value as LeftEarlyReason | "")}
-              className="h-9 w-full rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
+              className="h-10 sm:h-9 w-full rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
             >
               <option value="">Select a reason…</option>
               {LEFT_EARLY_REASONS.map((r) => (
@@ -573,27 +574,29 @@ function LeftEarlyModal({
             </select>
           </div>
 
-          <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning-light text-warning px-3 py-2 text-xs">
-            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            Parent will be notified about early collection.
+          <div className="flex items-start gap-2.5 rounded-md border border-warning/30 bg-warning-light text-warning px-3 py-2.5 text-xs">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div className="leading-relaxed">
+              Parent will be notified about early collection.
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2 px-5 h-16 border-t border-border">
+        <div className="flex flex-col-reverse sm:flex-row items-center sm:justify-between gap-2 px-4 sm:px-5 py-3 sm:py-0 sm:h-16 border-t border-border shrink-0">
           {initial.leftEarly ? (
             <button
               onClick={onRemove}
-              className="h-9 px-3 rounded-md text-sm text-danger hover:bg-danger-light"
+              className="w-full sm:w-auto h-10 sm:h-9 px-3 rounded-md text-sm text-danger hover:bg-danger-light transition"
             >
               Remove
             </button>
           ) : (
-            <span />
+            <span className="hidden sm:inline" />
           )}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={onClose}
-              className="h-9 px-4 rounded-md border border-border text-sm hover:bg-muted"
+              className="w-full sm:w-auto h-10 sm:h-9 px-4 rounded-md border border-border text-sm font-medium hover:bg-muted transition"
             >
               Cancel
             </button>
@@ -606,7 +609,7 @@ function LeftEarlyModal({
                   leftEarlyReason: reason as LeftEarlyReason,
                 })
               }
-              className="h-9 px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto h-10 sm:h-9 px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Save
             </button>

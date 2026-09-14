@@ -8,6 +8,7 @@ import {
   Phone,
   Search,
   ShieldAlert,
+  Trash2,
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
@@ -73,6 +74,14 @@ export default function UnexplainedAbsencePage() {
     update(r.id, { status: "Escalated", note: "No response in 24 hours." });
   };
 
+  const handleDelete = (id: string) => {
+    setRows((prev) => prev.filter((r) => r.id !== id));
+    if (selectedId === id) {
+      setSelectedId(null);
+      setMobileShowDetail(false);
+    }
+  };
+
   const selectRow = (id: string) => {
     setSelectedId(id);
     setMobileShowDetail(true);
@@ -104,7 +113,10 @@ export default function UnexplainedAbsencePage() {
                 />
               </div>
 
-              <div className="flex items-center gap-1">
+              <div
+                className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0"
+                style={{ scrollbarWidth: "none" }}
+              >
                 <FilterTab
                   active={filter === "open"}
                   onClick={() => setFilter("open")}
@@ -139,6 +151,7 @@ export default function UnexplainedAbsencePage() {
                       caseItem={r}
                       selected={r.id === selectedId}
                       onClick={() => selectRow(r.id)}
+                      onDelete={() => handleDelete(r.id)}
                     />
                   </li>
                 ))
@@ -208,10 +221,12 @@ function CaseListItem({
   caseItem,
   selected,
   onClick,
+  onDelete,
 }: {
   caseItem: UnexplainedCase;
   selected: boolean;
   onClick: () => void;
+  onDelete: () => void;
 }) {
   const dot =
     caseItem.status === "Awaiting parent"
@@ -223,32 +238,47 @@ function CaseListItem({
       : "bg-navy";
 
   return (
-    <button
-      onClick={onClick}
-      className={`group w-full flex items-start gap-3 px-4 py-3.5 text-left transition ${
+    <div
+      className={`group w-full flex items-start gap-3 px-4 py-3.5 text-left transition relative ${
         selected
           ? "bg-blue-light/50 border-l-2 border-blue"
           : "border-l-2 border-transparent hover:bg-muted/40"
       }`}
     >
-      <span
-        className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${dot}`}
-        aria-hidden
-      />
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium truncate">
-          {caseItem.studentName}
+      <button
+        onClick={onClick}
+        className="flex items-start gap-3 flex-1 min-w-0 text-left outline-none"
+      >
+        <span
+          className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${dot}`}
+          aria-hidden
+        />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium truncate pr-6">
+            {caseItem.studentName}
+          </div>
+          <div className="text-xs text-muted-foreground mt-0.5 truncate">
+            {caseItem.grade} · {caseItem.className} · Absent{" "}
+            {fmtDate(caseItem.date)}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-1 truncate">
+            {caseItem.status}
+            {caseItem.notifiedAt ? ` · Notified ${caseItem.notifiedAt}` : ""}
+          </div>
         </div>
-        <div className="text-xs text-muted-foreground mt-0.5 truncate">
-          {caseItem.grade} · {caseItem.className} · Absent{" "}
-          {fmtDate(caseItem.date)}
-        </div>
-        <div className="text-[11px] text-muted-foreground mt-1 truncate">
-          {caseItem.status}
-          {caseItem.notifiedAt ? ` · Notified ${caseItem.notifiedAt}` : ""}
-        </div>
-      </div>
-    </button>
+      </button>
+
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        className="absolute right-3 top-3.5 p-1.5 rounded-md text-muted-foreground hover:bg-danger-light hover:text-danger transition-colors shrink-0"
+        aria-label="Delete case"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </div>
   );
 }
 
@@ -469,7 +499,7 @@ function FilterTab({
   return (
     <button
       onClick={onClick}
-      className={`h-8 px-3 rounded-full text-xs font-medium transition ${
+      className={`h-8 px-3 rounded-full text-xs font-medium transition shrink-0 whitespace-nowrap ${
         active ? "bg-navy text-white" : "text-muted-foreground hover:bg-muted"
       }`}
     >

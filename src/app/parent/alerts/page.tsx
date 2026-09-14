@@ -8,8 +8,9 @@ import {
   Clock,
   Info,
   MessageSquare,
-  X,
   ShieldAlert,
+  Trash2,
+  X,
 } from "lucide-react";
 import { ParentShell } from "@/components/layout/ParentShell";
 import {
@@ -27,6 +28,7 @@ export default function ParentAlertsPage() {
 
   const unreadCount = alerts.filter((a) => !a.read).length;
   const pendingCount = alerts.filter((a) => !a.acknowledged).length;
+  const acknowledgedCount = alerts.filter((a) => a.acknowledged).length;
 
   const filtered = useMemo(() => {
     if (filter === "unread") return alerts.filter((a) => !a.read);
@@ -54,6 +56,44 @@ export default function ParentAlertsPage() {
     setActive(null);
   };
 
+  const deleteAlert = (id: string) => {
+    setAlerts((prev) => prev.filter((a) => a.id !== id));
+    if (active?.id === id) setActive(null);
+  };
+
+  // Dynamically group KPIs to satisfy the mobile grid requirement
+  const kpiData = [
+    {
+      id: "total",
+      icon: <Bell className="h-4 w-4" />,
+      label: "Total alerts",
+      value: alerts.length,
+      tone: "blue" as const,
+    },
+    {
+      id: "unread",
+      icon: <AlertTriangle className="h-4 w-4" />,
+      label: "Unread",
+      value: unreadCount,
+      tone: "danger" as const,
+    },
+    {
+      id: "acknowledged",
+      icon: <CheckCircle2 className="h-4 w-4" />,
+      label: "Acknowledged",
+      value: acknowledgedCount,
+      tone: "success" as const,
+    },
+  ];
+
+  // Mobile layout logic: 2 columns if exactly 4, 1 column if 3.
+  const kpiGridClass =
+    kpiData.length === 4
+      ? "grid-cols-2 lg:grid-cols-4"
+      : kpiData.length === 3
+      ? "grid-cols-1 md:grid-cols-3"
+      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
+
   return (
     <ParentShell
       childName={parentChild.name}
@@ -70,25 +110,10 @@ export default function ParentAlertsPage() {
       </section>
 
       {/* Summary */}
-      <section className="grid gap-4 sm:grid-cols-3 mb-6">
-        <SummaryCard
-          icon={<Bell className="h-4 w-4" />}
-          label="Total alerts"
-          value={alerts.length}
-          tone="blue"
-        />
-        <SummaryCard
-          icon={<AlertTriangle className="h-4 w-4" />}
-          label="Unread"
-          value={unreadCount}
-          tone="danger"
-        />
-        <SummaryCard
-          icon={<CheckCircle2 className="h-4 w-4" />}
-          label="Acknowledged"
-          value={alerts.filter((a) => a.acknowledged).length}
-          tone="success"
-        />
+      <section className={`grid ${kpiGridClass} gap-3 sm:gap-4 mb-6`}>
+        {kpiData.map((kpi) => (
+          <SummaryCard key={kpi.id} {...kpi} />
+        ))}
       </section>
 
       {/* Pending banner */}
@@ -109,7 +134,7 @@ export default function ParentAlertsPage() {
       )}
 
       {/* Filter tabs */}
-      <div className="flex items-center gap-1 mb-4">
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-1 mb-4 overflow-x-auto pb-1">
         <FilterTab
           active={filter === "all"}
           onClick={() => setFilter("all")}
@@ -127,7 +152,7 @@ export default function ParentAlertsPage() {
         <FilterTab
           active={filter === "acknowledged"}
           onClick={() => setFilter("acknowledged")}
-          count={alerts.filter((a) => a.acknowledged).length}
+          count={acknowledgedCount}
         >
           Acknowledged
         </FilterTab>
@@ -147,7 +172,12 @@ export default function ParentAlertsPage() {
       ) : (
         <ul className="space-y-3">
           {filtered.map((a) => (
-            <AlertCard key={a.id} alert={a} onOpen={() => openAlert(a)} />
+            <AlertCard
+              key={a.id}
+              alert={a}
+              onOpen={() => openAlert(a)}
+              onDelete={() => deleteAlert(a.id)}
+            />
           ))}
         </ul>
       )}
@@ -217,7 +247,7 @@ function FilterTab({
   return (
     <button
       onClick={onClick}
-      className={`h-8 px-3 rounded-md text-xs font-medium transition inline-flex items-center gap-1.5 ${
+      className={`h-8 px-3 rounded-md text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
         active ? "bg-navy text-white" : "text-muted-foreground hover:bg-muted"
       }`}
     >
@@ -236,9 +266,11 @@ function FilterTab({
 function AlertCard({
   alert,
   onOpen,
+  onDelete,
 }: {
   alert: ParentAlert;
   onOpen: () => void;
+  onDelete: () => void;
 }) {
   const tone =
     alert.severity === "danger"
@@ -275,52 +307,65 @@ function AlertCard({
         alert.read ? "bg-surface" : tone.bg
       } p-4 transition hover:shadow-sm`}
     >
-      <div className="flex items-start gap-3">
-        <span
-          className={`h-9 w-9 rounded-lg ${tone.icon} grid place-items-center shrink-0`}
-        >
-          <Icon className="h-4 w-4" />
-        </span>
+      <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+        {/* Content Section */}
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <span
+            className={`h-9 w-9 rounded-lg ${tone.icon} grid place-items-center shrink-0`}
+          >
+            <Icon className="h-4 w-4" />
+          </span>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`text-sm font-semibold ${tone.label}`}>
-              {alert.title}
-            </span>
-            {!alert.read && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-danger text-white text-[10px] font-semibold uppercase tracking-wide">
-                New
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`text-sm font-semibold ${tone.label}`}>
+                {alert.title}
               </span>
-            )}
-            {alert.acknowledged && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-success-light text-success text-[10px] font-medium">
-                <CheckCircle2 className="h-3 w-3" />
-                Acknowledged
+              {!alert.read && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-danger text-white text-[10px] font-semibold uppercase tracking-wide">
+                  New
+                </span>
+              )}
+              {alert.acknowledged && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-success-light text-success text-[10px] font-medium">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Acknowledged
+                </span>
+              )}
+            </div>
+
+            <p className="mt-1 text-sm text-muted-foreground">{alert.message}</p>
+
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {formatDate(alert.date)} · {alert.createdAt}
               </span>
-            )}
-          </div>
-
-          <p className="mt-1 text-sm text-muted-foreground">{alert.message}</p>
-
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              {formatDate(alert.date)} · {alert.createdAt}
-            </span>
-            <span className="font-mono">{alert.id}</span>
+              <span className="font-mono">{alert.id}</span>
+            </div>
           </div>
         </div>
 
-        <button
-          onClick={onOpen}
-          className={`h-8 px-3 rounded-md text-xs font-medium shrink-0 transition ${
-            alert.acknowledged
-              ? "border border-border hover:bg-muted"
-              : "bg-blue text-white hover:bg-navy"
-          }`}
-        >
-          {alert.acknowledged ? "View" : "Respond"}
-        </button>
+        {/* Actions Section */}
+        <div className="flex items-center justify-end gap-2 shrink-0 border-t sm:border-0 border-border pt-3 sm:pt-0">
+          <button
+            onClick={onOpen}
+            className={`h-8 px-3 rounded-md text-xs font-medium shrink-0 transition flex-1 sm:flex-none text-center justify-center ${
+              alert.acknowledged
+                ? "border border-border hover:bg-muted"
+                : "bg-blue text-white hover:bg-navy"
+            }`}
+          >
+            {alert.acknowledged ? "View Details" : "Respond Now"}
+          </button>
+          <button
+            onClick={onDelete}
+            className="h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-danger hover:bg-danger-light inline-flex items-center justify-center transition-colors shrink-0"
+            aria-label="Delete alert"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </li>
   );
@@ -372,7 +417,7 @@ function AcknowledgeModal({
 
       <div className="relative w-full max-w-lg rounded-lg bg-surface border border-border shadow-xl">
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border">
+        <div className="flex items-start justify-between gap-3 px-4 sm:px-5 py-4 border-b border-border">
           <div className="flex items-start gap-3 min-w-0">
             <span className="h-9 w-9 rounded-lg bg-danger-light text-danger grid place-items-center shrink-0">
               <ShieldAlert className="h-4 w-4" />
@@ -388,7 +433,7 @@ function AcknowledgeModal({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-md hover:bg-muted"
+            className="p-1.5 rounded-md hover:bg-muted shrink-0"
             aria-label="Close"
           >
             <X className="h-4 w-4" />
@@ -396,7 +441,7 @@ function AcknowledgeModal({
         </div>
 
         {/* Body */}
-        <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
+        <div className="p-4 sm:p-5 space-y-5 max-h-[70vh] overflow-y-auto">
           <div className="rounded-md border border-border bg-muted/30 px-4 py-3 text-sm">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
               Message from school
@@ -447,7 +492,7 @@ function AcknowledgeModal({
                             </div>
                           </div>
                           <span
-                            className={`h-3.5 w-3.5 rounded-full border-2 transition ${
+                            className={`h-3.5 w-3.5 rounded-full border-2 transition shrink-0 ${
                               active
                                 ? "border-blue bg-blue"
                                 : "border-muted-foreground/40"
@@ -494,7 +539,7 @@ function AcknowledgeModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-5 h-16 border-t border-border">
+        <div className="flex items-center justify-end gap-2 px-4 sm:px-5 h-16 border-t border-border shrink-0">
           <button
             onClick={onClose}
             className="h-9 px-4 rounded-md border border-border text-sm hover:bg-muted"

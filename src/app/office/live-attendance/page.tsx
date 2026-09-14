@@ -76,50 +76,54 @@ export default function LiveAttendancePage() {
       actions={
         <button
           onClick={handleRefresh}
-          className="h-9 px-3.5 rounded-md border border-border text-sm hover:bg-muted inline-flex items-center gap-1.5"
+          className="h-10 sm:h-9 px-4 sm:px-3.5 rounded-md border border-border text-sm font-medium sm:font-normal hover:bg-muted flex items-center justify-center gap-2 sm:gap-1.5 w-full sm:w-auto transition-colors"
         >
           <RefreshCw
-            className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`}
+            className={`h-4 w-4 sm:h-3.5 sm:w-3.5 ${
+              refreshing ? "animate-spin" : ""
+            }`}
           />
           Refresh
         </button>
       }
     >
       {/* Header strip */}
-      <div className="rounded-lg border border-border bg-surface px-5 py-4 mb-6 flex flex-wrap items-center gap-3">
-        <span className="h-10 w-10 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
-          <Activity className="h-5 w-5" />
-        </span>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium">
-            Morning roll call · 12 Sep 2026
-          </div>
-          <div className="text-xs text-muted-foreground mt-0.5">
-            Last updated at {refreshedAt}
+      <div className="rounded-lg border border-border bg-surface px-4 py-4 sm:px-5 sm:py-4 mb-5 sm:mb-6 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-4 sm:gap-3">
+        <div className="flex items-center gap-3 flex-1 min-w-0 w-full">
+          <span className="h-10 w-10 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
+            <Activity className="h-5 w-5" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium">
+              Morning roll call · 12 Sep 2026
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              Last updated at {refreshedAt}
+            </div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-          <span className="inline-flex items-center gap-1.5 text-success">
-            <span className="h-2 w-2 rounded-full bg-success" />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4 text-xs w-full sm:w-auto mt-1 sm:mt-0 pt-3 sm:pt-0 border-t border-border sm:border-0">
+          <span className="inline-flex items-center gap-1.5 text-success whitespace-nowrap">
+            <span className="h-2 w-2 rounded-full bg-success shrink-0" />
             {counts.submitted} submitted
           </span>
-          <span className="inline-flex items-center gap-1.5 text-inactive">
-            <span className="h-2 w-2 rounded-full bg-inactive-border" />
+          <span className="inline-flex items-center gap-1.5 text-inactive whitespace-nowrap">
+            <span className="h-2 w-2 rounded-full bg-inactive-border shrink-0" />
             {counts.pending} pending
           </span>
-          <span className="inline-flex items-center gap-1.5 text-warning">
-            <span className="h-2 w-2 rounded-full bg-warning" />
+          <span className="inline-flex items-center gap-1.5 text-warning whitespace-nowrap">
+            <span className="h-2 w-2 rounded-full bg-warning shrink-0" />
             {counts.draft} draft
           </span>
-          <span className="inline-flex items-center gap-1.5 text-danger">
-            <span className="h-2 w-2 rounded-full bg-danger" />
+          <span className="inline-flex items-center gap-1.5 text-danger whitespace-nowrap">
+            <span className="h-2 w-2 rounded-full bg-danger shrink-0" />
             {counts.overdue} overdue
           </span>
         </div>
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <StatCard
           icon={<CheckCircle2 className="h-4 w-4" />}
           label="Submitted"
@@ -151,7 +155,10 @@ export default function LiveAttendancePage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-1.5 mb-6">
+      <div
+        className="flex items-center gap-2 mb-5 sm:mb-6 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 sm:flex-wrap"
+        style={{ scrollbarWidth: "none" }}
+      >
         <FilterTab active={filter === "all"} onClick={() => setFilter("all")}>
           All ({rows.length})
         </FilterTab>
@@ -187,7 +194,7 @@ export default function LiveAttendancePage() {
           No classes match this filter.
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((c) => (
             <ClassCard
               key={c.classId}
@@ -263,7 +270,7 @@ function FilterTab({
   return (
     <button
       onClick={onClick}
-      className={`h-8 px-3 rounded-full text-xs font-medium transition ${
+      className={`h-8 px-3 rounded-full text-xs font-medium transition shrink-0 whitespace-nowrap ${
         active ? "bg-navy text-white" : "text-muted-foreground hover:bg-muted"
       }`}
     >
@@ -324,7 +331,7 @@ function ClassCard({
       className={`rounded-lg border border-border bg-surface border-l-4 ${p.ring} overflow-hidden hover:shadow-md hover:border-blue/40 transition cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue flex flex-col`}
     >
       {/* Header */}
-      <div className="px-5 py-4 border-b border-border">
+      <div className="px-4 py-3 sm:px-5 sm:py-4 border-b border-border">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-sm font-semibold truncate">
@@ -343,16 +350,16 @@ function ClassCard({
       </div>
 
       {/* Body */}
-      <div className="px-5 py-4 flex-1">
+      <div className="px-4 py-4 sm:px-5 flex-1">
         {cls.status === "Pending" || cls.status === "Overdue" ? (
-          <div className="text-xs text-muted-foreground py-6 text-center">
+          <div className="text-xs text-muted-foreground py-4 sm:py-6 text-center">
             {cls.status === "Pending"
               ? "Waiting for teacher submission."
               : "Roll call is overdue — please follow up."}
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-2.5 text-center">
+            <div className="grid grid-cols-3 gap-2 sm:gap-2.5 text-center">
               <MiniCount label="Present" value={cls.present} tone="success" />
               <MiniCount label="Absent" value={cls.absent} tone="danger" />
               <MiniCount label="Late" value={cls.late} tone="warning" />
@@ -377,14 +384,16 @@ function ClassCard({
       </div>
 
       {/* Footer */}
-      <div className="px-5 py-3 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
+      <div className="px-4 py-3 sm:px-5 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
-          <Clock className="h-3 w-3" />
-          {cls.submittedAt
-            ? `Submitted ${cls.submittedAt}`
-            : cls.status === "Draft"
-            ? "Draft in progress"
-            : "Not yet submitted"}
+          <Clock className="h-3 w-3 shrink-0" />
+          <span className="truncate">
+            {cls.submittedAt
+              ? `Submitted ${cls.submittedAt}`
+              : cls.status === "Draft"
+              ? "Draft in progress"
+              : "Not yet submitted"}
+          </span>
         </span>
         <button
           type="button"
@@ -392,7 +401,7 @@ function ClassCard({
             e.stopPropagation();
             onView();
           }}
-          className="text-xs text-blue hover:underline inline-flex items-center gap-0.5 font-medium"
+          className="text-xs text-blue hover:underline inline-flex items-center gap-0.5 font-medium shrink-0 pl-2"
         >
           View
           <ChevronRight className="h-3 w-3" />
@@ -418,9 +427,11 @@ function MiniCount({
       ? "text-danger"
       : "text-warning";
   return (
-    <div className="rounded-md border border-border bg-background py-2.5">
-      <div className={`text-lg font-semibold tabular-nums ${cls}`}>{value}</div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
+    <div className="rounded-md border border-border bg-background py-2 sm:py-2.5">
+      <div className={`text-base sm:text-lg font-semibold tabular-nums ${cls}`}>
+        {value}
+      </div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5 truncate px-1">
         {label}
       </div>
     </div>
@@ -449,12 +460,12 @@ function ClassDrawer({
 
       <aside className="relative w-full sm:max-w-md h-full bg-surface sm:border-l border-border shadow-xl flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
+        <div className="flex items-start justify-between gap-3 px-4 py-4 sm:px-5 border-b border-border shrink-0">
           <div className="flex items-start gap-3 min-w-0">
-            <span className="h-11 w-11 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
+            <span className="h-10 w-10 sm:h-11 sm:w-11 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
               <GraduationCap className="h-5 w-5" />
             </span>
-            <div className="min-w-0">
+            <div className="min-w-0 pt-0.5">
               <h2 className="text-sm font-semibold truncate">
                 {cls.grade} · {cls.name}
               </h2>
@@ -473,10 +484,10 @@ function ClassDrawer({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5 sm:space-y-6">
           {/* Status banner */}
           <section className="rounded-md border border-border bg-muted/20 p-4">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Activity className="h-3.5 w-3.5" />
                 Submission status
@@ -498,13 +509,13 @@ function ClassDrawer({
 
             {cls.status === "Submitted" && (
               <div className="mt-3 flex items-end gap-2">
-                <div className="text-3xl font-semibold tabular-nums">
+                <div className="text-3xl font-semibold tabular-nums leading-none">
                   {marked}
-                  <span className="text-base text-muted-foreground">
+                  <span className="text-base font-normal text-muted-foreground">
                     /{cls.total}
                   </span>
                 </div>
-                <div className="text-xs text-muted-foreground mb-1">
+                <div className="text-xs text-muted-foreground mb-0.5">
                   students marked
                 </div>
               </div>
@@ -593,7 +604,7 @@ function ClassDrawer({
               </h3>
               <ul className="rounded-md border border-border divide-y divide-border">
                 {relatedCases.map((c) => (
-                  <li key={c.id} className="flex items-center gap-3 px-4 py-3">
+                  <li key={c.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 py-3">
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium truncate">
                         {c.studentName}
@@ -603,7 +614,7 @@ function ClassDrawer({
                       </div>
                     </div>
                     <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 self-start sm:self-auto ${
                         c.status === "Awaiting parent"
                           ? "bg-danger-light text-danger border border-danger/20"
                           : c.status === "Parent responded"
@@ -621,10 +632,10 @@ function ClassDrawer({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-border p-4 shrink-0">
+        <div className="border-t border-border p-4 pb-6 sm:pb-4 shrink-0">
           <button
             onClick={onClose}
-            className="w-full h-10 rounded-md border border-border text-sm font-medium hover:bg-muted inline-flex items-center justify-center gap-2"
+            className="w-full h-11 sm:h-10 rounded-md border border-border text-sm font-medium hover:bg-muted inline-flex items-center justify-center gap-2 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to board
@@ -653,12 +664,12 @@ function CountBox({
       ? "text-danger"
       : "text-warning";
   return (
-    <div className="rounded-md border border-border bg-background p-3 text-center">
+    <div className="rounded-md border border-border bg-background p-2.5 sm:p-3 text-center">
       <div className={`inline-flex items-center gap-1 text-[11px] ${cls}`}>
         {icon}
         {label}
       </div>
-      <div className={`mt-1 text-lg font-semibold ${cls} tabular-nums`}>
+      <div className={`mt-1 text-base sm:text-lg font-semibold ${cls} tabular-nums`}>
         {value}
       </div>
     </div>
@@ -677,9 +688,9 @@ function InfoRow({
   mono?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-4 px-4 py-2.5">
+    <div className="flex items-center gap-3 sm:gap-4 px-3 py-2.5 sm:px-4">
       <span className="text-muted-foreground shrink-0">{icon}</span>
-      <dt className="text-xs text-muted-foreground w-20 shrink-0">{label}</dt>
+      <dt className="text-xs text-muted-foreground w-16 sm:w-20 shrink-0">{label}</dt>
       <dd
         className={`text-sm flex-1 truncate ${
           mono ? "font-mono text-xs" : ""

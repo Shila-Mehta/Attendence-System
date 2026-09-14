@@ -110,7 +110,7 @@ export default function AdminDashboardPage() {
     >
       {/* ================= KPI CARDS ================= */}
 
-      <section className="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <KpiCard
           icon={<GraduationCap className="h-4 w-4" />}
           label="Students"

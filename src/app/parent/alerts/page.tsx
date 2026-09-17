@@ -12,7 +12,17 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+
 import { ParentShell } from "@/components/layout/ParentShell";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import {
+  ToastContainer,
+  type ToastMessage,
+  type ToastTone,
+} from "@/components/ui/Toast";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import {
   parentAlerts as seed,
   parentChild,
@@ -22,10 +32,28 @@ import {
 type Filter = "all" | "unread" | "acknowledged";
 
 export default function ParentAlertsPage() {
+  /* ---------------- Data ---------------- */
   const [alerts, setAlerts] = useState<ParentAlert[]>(seed);
+
+  /* ---------------- Async state slots (Phase 10) ---------------- */
+  const [loading] = useState(false);
+  const [error] = useState(false);
+
+  /* ---------------- UI state ---------------- */
   const [filter, setFilter] = useState<Filter>("all");
   const [active, setActive] = useState<ParentAlert | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<ParentAlert | null>(null);
 
+  /* ---------------- Toasts ---------------- */
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const pushToast = (tone: ToastTone, title: string, description?: string) => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts((t) => [...t, { id, tone, title, description }]);
+  };
+  const dismissToast = (id: string) =>
+    setToasts((t) => t.filter((x) => x.id !== id));
+
+  /* ---------------- Derived ---------------- */
   const unreadCount = alerts.filter((a) => !a.read).length;
   const pendingCount = alerts.filter((a) => !a.acknowledged).length;
   const acknowledgedCount = alerts.filter((a) => a.acknowledged).length;
@@ -36,9 +64,9 @@ export default function ParentAlertsPage() {
     return alerts;
   }, [alerts, filter]);
 
+  /* ---------------- Actions ---------------- */
   const openAlert = (alert: ParentAlert) => {
     setActive(alert);
-    // mark as read when opened
     if (!alert.read) {
       setAlerts((prev) =>
         prev.map((a) => (a.id === alert.id ? { ...a, read: true } : a))
@@ -54,134 +82,168 @@ export default function ParentAlertsPage() {
       )
     );
     setActive(null);
+    pushToast(
+      "success",
+      "Response submitted",
+      `Your reply has been sent to the school office.`
+    );
   };
 
-  const deleteAlert = (id: string) => {
-    setAlerts((prev) => prev.filter((a) => a.id !== id));
-    if (active?.id === id) setActive(null);
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    const removed = pendingDelete;
+    setAlerts((prev) => prev.filter((a) => a.id !== removed.id));
+    if (active?.id === removed.id) setActive(null);
+    setPendingDelete(null);
+    pushToast(
+      "success",
+      "Alert removed",
+      `${removed.title} was cleared from your inbox.`
+    );
   };
-
-  // Dynamically group KPIs to satisfy the mobile grid requirement
-  const kpiData = [
-    {
-      id: "total",
-      icon: <Bell className="h-4 w-4" />,
-      label: "Total alerts",
-      value: alerts.length,
-      tone: "blue" as const,
-    },
-    {
-      id: "unread",
-      icon: <AlertTriangle className="h-4 w-4" />,
-      label: "Unread",
-      value: unreadCount,
-      tone: "danger" as const,
-    },
-    {
-      id: "acknowledged",
-      icon: <CheckCircle2 className="h-4 w-4" />,
-      label: "Acknowledged",
-      value: acknowledgedCount,
-      tone: "success" as const,
-    },
-  ];
-
-  // Mobile layout logic: 2 columns if exactly 4, 1 column if 3.
-  const kpiGridClass =
-    kpiData.length === 4
-      ? "grid-cols-2 lg:grid-cols-4"
-      : kpiData.length === 3
-      ? "grid-cols-1 md:grid-cols-3"
-      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
 
   return (
-    <ParentShell
-      childName={parentChild.name}
-      childClass={`${parentChild.grade} · ${parentChild.class}`}
-      alertCount={unreadCount}
-    >
-      <section className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
-          Alerts
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Unexplained absence notifications for {parentChild.name.split(" ")[0]}.
-        </p>
-      </section>
-
-      {/* Summary */}
-      <section className={`grid ${kpiGridClass} gap-3 sm:gap-4 mb-6`}>
-        {kpiData.map((kpi) => (
-          <SummaryCard key={kpi.id} {...kpi} />
-        ))}
-      </section>
-
-      {/* Pending banner */}
-      {pendingCount > 0 && (
-        <div className="mb-4 flex items-start gap-3 rounded-lg border border-danger/30 bg-danger-light text-danger px-4 py-3 text-sm">
-          <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0" />
-          <div>
-            <div className="font-medium">
-              {pendingCount} alert{pendingCount === 1 ? "" : "s"} awaiting your
-              response
-            </div>
-            <div className="text-xs mt-0.5 opacity-90">
-              Please confirm the reason for absence to help the school keep
-              accurate records.
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Filter tabs */}
-      <div className="flex flex-wrap items-center gap-1.5 sm:gap-1 mb-4 overflow-x-auto pb-1">
-        <FilterTab
-          active={filter === "all"}
-          onClick={() => setFilter("all")}
-          count={alerts.length}
-        >
-          All
-        </FilterTab>
-        <FilterTab
-          active={filter === "unread"}
-          onClick={() => setFilter("unread")}
-          count={unreadCount}
-        >
-          Unread
-        </FilterTab>
-        <FilterTab
-          active={filter === "acknowledged"}
-          onClick={() => setFilter("acknowledged")}
-          count={acknowledgedCount}
-        >
-          Acknowledged
-        </FilterTab>
-      </div>
-
-      {/* Alert list */}
-      {filtered.length === 0 ? (
-        <div className="rounded-lg border border-border bg-surface px-6 py-16 text-center">
-          <div className="mx-auto h-12 w-12 rounded-full bg-muted grid place-items-center text-muted-foreground">
-            <CheckCircle2 className="h-5 w-5" />
-          </div>
-          <div className="mt-3 text-sm font-medium">You&apos;re all caught up</div>
-          <div className="text-xs text-muted-foreground mt-1">
-            No alerts match this filter.
-          </div>
-        </div>
-      ) : (
-        <ul className="space-y-3">
-          {filtered.map((a) => (
-            <AlertCard
-              key={a.id}
-              alert={a}
-              onOpen={() => openAlert(a)}
-              onDelete={() => deleteAlert(a.id)}
+    <>
+      <ParentShell
+        childName={parentChild.name}
+        childClass={`${parentChild.grade} · ${parentChild.class}`}
+        alertCount={unreadCount}
+      >
+        {loading ? (
+          <div className="rounded-lg border border-border bg-surface">
+            <LoadingState
+              title="Loading alerts…"
+              description="Fetching absence notifications."
             />
-          ))}
-        </ul>
-      )}
+          </div>
+        ) : error ? (
+          <div className="rounded-lg border border-border bg-surface">
+            <ErrorState
+              title="Couldn't load alerts"
+              description="The server didn't respond. Check your connection and try again."
+              onRetry={() => window.location.reload()}
+            />
+          </div>
+        ) : (
+          <>
+            <section className="mb-5 sm:mb-6">
+              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
+                Alerts
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Unexplained absence notifications for{" "}
+                {parentChild.name.split(" ")[0]}.
+              </p>
+            </section>
 
+            {/* ================= Summary ================= */}
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+              <SummaryCard
+                icon={<Bell className="h-4 w-4" />}
+                label="Total alerts"
+                value={alerts.length}
+                tone="blue"
+              />
+              <SummaryCard
+                icon={<AlertTriangle className="h-4 w-4" />}
+                label="Unread"
+                value={unreadCount}
+                tone="danger"
+              />
+              <SummaryCard
+                icon={<CheckCircle2 className="h-4 w-4" />}
+                label="Acknowledged"
+                value={acknowledgedCount}
+                tone="success"
+              />
+            </section>
+
+            {/* ================= Pending banner ================= */}
+            {pendingCount > 0 && (
+              <div className="mb-4 flex items-start gap-3 rounded-lg border border-danger/30 bg-danger-light text-danger px-4 py-3 text-sm">
+                <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0" />
+                <div>
+                  <div className="font-medium">
+                    {pendingCount} alert{pendingCount === 1 ? "" : "s"} awaiting
+                    your response
+                  </div>
+                  <div className="text-xs mt-0.5 opacity-90">
+                    Please confirm the reason for absence to help the school
+                    keep accurate records.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ================= Filter tabs ================= */}
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-1 mb-4 overflow-x-auto pb-1">
+              <FilterTab
+                active={filter === "all"}
+                onClick={() => setFilter("all")}
+                count={alerts.length}
+              >
+                All
+              </FilterTab>
+              <FilterTab
+                active={filter === "unread"}
+                onClick={() => setFilter("unread")}
+                count={unreadCount}
+              >
+                Unread
+              </FilterTab>
+              <FilterTab
+                active={filter === "acknowledged"}
+                onClick={() => setFilter("acknowledged")}
+                count={acknowledgedCount}
+              >
+                Acknowledged
+              </FilterTab>
+            </div>
+
+            {/* ================= Alert list ================= */}
+            {filtered.length === 0 ? (
+              <div className="rounded-lg border border-border bg-surface">
+                {alerts.length === 0 ? (
+                  <EmptyState
+                    icon={<CheckCircle2 className="h-5 w-5" />}
+                    title="No alerts"
+                    description="You don't have any absence notifications right now."
+                  />
+                ) : (
+                  <EmptyState
+                    icon={<Bell className="h-5 w-5" />}
+                    title="No alerts match this filter"
+                    description="Try a different filter to see more alerts."
+                    action={
+                      filter !== "all" ? (
+                        <button
+                          onClick={() => setFilter("all")}
+                          className="h-9 px-4 rounded-md border border-border text-sm font-medium hover:bg-muted transition"
+                        >
+                          Show all
+                        </button>
+                      ) : undefined
+                    }
+                  />
+                )}
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {filtered.map((a) => (
+                  <AlertCard
+                    key={a.id}
+                    alert={a}
+                    onOpen={() => openAlert(a)}
+                    onDelete={() => setPendingDelete(a)}
+                  />
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </ParentShell>
+
+      {/* ================= ACKNOWLEDGE MODAL ================= */}
       {active && (
         <AcknowledgeModal
           alert={active}
@@ -189,11 +251,37 @@ export default function ParentAlertsPage() {
           onSubmit={(reason, notes) => acknowledge(active.id, reason, notes)}
         />
       )}
-    </ParentShell>
+
+      {/* ================= CONFIRM DELETE ================= */}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete this alert?"
+        message={
+          <>
+            <span className="font-medium text-foreground">
+              {pendingDelete?.title}
+            </span>{" "}
+            from {pendingDelete ? formatDate(pendingDelete.date) : ""} will be
+            removed from your alerts inbox. This action cannot be undone.
+          </>
+        }
+        confirmLabel="Delete alert"
+        cancelLabel="Keep"
+        tone="danger"
+        icon={<Trash2 className="h-5 w-5" />}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
+
+      {/* ================= TOASTS ================= */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+    </>
   );
 }
 
-/* ---------------- sub-components ---------------- */
+/* =========================================================
+   Sub-components
+   ========================================================= */
 
 const MONTHS_SHORT = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -223,12 +311,16 @@ function SummaryCard({
       ? "text-danger"
       : "text-success";
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
+    <div className="rounded-lg border border-border bg-surface p-3 sm:p-4 min-w-0">
       <div className={`flex items-center gap-1.5 text-xs ${cls}`}>
         {icon}
-        {label}
+        <span className="truncate">{label}</span>
       </div>
-      <div className={`mt-1 text-2xl font-semibold ${cls}`}>{value}</div>
+      <div
+        className={`mt-1 text-2xl sm:text-3xl font-semibold tabular-nums ${cls}`}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -247,13 +339,13 @@ function FilterTab({
   return (
     <button
       onClick={onClick}
-      className={`h-8 px-3 rounded-md text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+      className={`h-8 px-3 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
         active ? "bg-navy text-white" : "text-muted-foreground hover:bg-muted"
       }`}
     >
       {children}
       <span
-        className={`inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] ${
+        className={`inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] tabular-nums ${
           active ? "bg-white/20" : "bg-muted text-muted-foreground"
         }`}
       >
@@ -277,20 +369,20 @@ function AlertCard({
       ? {
           border: "border-danger/30",
           bg: "bg-danger-light/40",
-          icon: "bg-danger-light text-danger",
+          icon: "bg-danger-light text-danger border border-danger/20",
           label: "text-danger",
         }
       : alert.severity === "warning"
       ? {
           border: "border-warning/30",
           bg: "bg-warning-light/40",
-          icon: "bg-warning-light text-warning",
+          icon: "bg-warning-light text-warning border border-warning/20",
           label: "text-warning",
         }
       : {
           border: "border-border",
           bg: "bg-surface",
-          icon: "bg-blue-light text-blue",
+          icon: "bg-blue-light text-blue border border-blue/20",
           label: "text-blue",
         };
 
@@ -308,7 +400,7 @@ function AlertCard({
       } p-4 transition hover:shadow-sm`}
     >
       <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-        {/* Content Section */}
+        {/* Content */}
         <div className="flex items-start gap-3 flex-1 min-w-0">
           <span
             className={`h-9 w-9 rounded-lg ${tone.icon} grid place-items-center shrink-0`}
@@ -327,17 +419,19 @@ function AlertCard({
                 </span>
               )}
               {alert.acknowledged && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-success-light text-success text-[10px] font-medium">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-success-light text-success border border-success/20 text-[10px] font-medium">
                   <CheckCircle2 className="h-3 w-3" />
                   Acknowledged
                 </span>
               )}
             </div>
 
-            <p className="mt-1 text-sm text-muted-foreground">{alert.message}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {alert.message}
+            </p>
 
             <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-              <span className="inline-flex items-center gap-1">
+              <span className="inline-flex items-center gap-1 tabular-nums">
                 <Clock className="h-3 w-3" />
                 {formatDate(alert.date)} · {alert.createdAt}
               </span>
@@ -346,11 +440,11 @@ function AlertCard({
           </div>
         </div>
 
-        {/* Actions Section */}
+        {/* Actions */}
         <div className="flex items-center justify-end gap-2 shrink-0 border-t sm:border-0 border-border pt-3 sm:pt-0">
           <button
             onClick={onOpen}
-            className={`h-8 px-3 rounded-md text-xs font-medium shrink-0 transition flex-1 sm:flex-none text-center justify-center ${
+            className={`h-9 sm:h-8 px-3 rounded-md text-xs font-medium shrink-0 transition flex-1 sm:flex-none text-center justify-center inline-flex items-center ${
               alert.acknowledged
                 ? "border border-border hover:bg-muted"
                 : "bg-blue text-white hover:bg-navy"
@@ -360,7 +454,7 @@ function AlertCard({
           </button>
           <button
             onClick={onDelete}
-            className="h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-danger hover:bg-danger-light inline-flex items-center justify-center transition-colors shrink-0"
+            className="h-9 w-9 sm:h-8 sm:w-8 rounded-md border border-border text-muted-foreground hover:text-danger hover:bg-danger-light inline-flex items-center justify-center transition-colors shrink-0"
             aria-label="Delete alert"
           >
             <Trash2 className="h-4 w-4" />
@@ -371,7 +465,9 @@ function AlertCard({
   );
 }
 
-/* ---------------- modal ---------------- */
+/* =========================================================
+   Acknowledge modal
+   ========================================================= */
 
 const REASONS = [
   { id: "sickness", label: "Sickness", desc: "Fever, cold, flu or illness." },
@@ -412,21 +508,26 @@ function AcknowledgeModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      <div className="relative w-full max-w-lg rounded-lg bg-surface border border-border shadow-xl">
+      <div className="relative w-full sm:max-w-lg max-h-[92vh] sm:max-h-[90vh] rounded-t-2xl sm:rounded-lg bg-surface border border-border shadow-xl flex flex-col overflow-hidden">
+        {/* Grabber (mobile) */}
+        <div className="sm:hidden flex justify-center pt-2">
+          <span className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+        </div>
+
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 px-4 sm:px-5 py-4 border-b border-border">
+        <div className="flex items-start justify-between gap-3 px-4 sm:px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-start gap-3 min-w-0">
-            <span className="h-9 w-9 rounded-lg bg-danger-light text-danger grid place-items-center shrink-0">
+            <span className="h-9 w-9 rounded-lg bg-danger-light text-danger border border-danger/20 grid place-items-center shrink-0">
               <ShieldAlert className="h-4 w-4" />
             </span>
             <div className="min-w-0">
               <h2 className="text-sm font-semibold truncate">
-                {alreadyAcked ? "Alert details" : "Respond to alert"}
+                {alreadyAcked ? "Alert Details" : "Respond to Alert"}
               </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">
                 {formatDate(alert.date)} · {alert.createdAt}
               </p>
             </div>
@@ -441,7 +542,7 @@ function AcknowledgeModal({
         </div>
 
         {/* Body */}
-        <div className="p-4 sm:p-5 space-y-5 max-h-[70vh] overflow-y-auto">
+        <div className="p-4 sm:p-5 space-y-5 overflow-y-auto">
           <div className="rounded-md border border-border bg-muted/30 px-4 py-3 text-sm">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
               Message from school
@@ -539,20 +640,20 @@ function AcknowledgeModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-4 sm:px-5 h-16 border-t border-border shrink-0">
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 px-4 sm:px-5 py-3 sm:py-0 sm:h-16 border-t border-border shrink-0">
           <button
             onClick={onClose}
-            className="h-9 px-4 rounded-md border border-border text-sm hover:bg-muted"
+            className="w-full sm:w-auto h-11 sm:h-9 px-4 rounded-md border border-border text-sm hover:bg-muted transition"
           >
             {alreadyAcked ? "Close" : "Cancel"}
           </button>
           {!alreadyAcked && (
             <button
               onClick={handleSubmit}
-              className="h-9 px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition inline-flex items-center gap-1.5"
+              className="w-full sm:w-auto h-11 sm:h-9 px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition inline-flex items-center justify-center gap-1.5"
             >
               <CheckCircle2 className="h-4 w-4" />
-              Submit response
+              Submit Response
             </button>
           )}
         </div>

@@ -14,7 +14,16 @@ import {
   Users,
   AlertTriangle,
 } from "lucide-react";
+
 import { PageContainer } from "@/components/layout/PageContainer";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import {
+  ToastContainer,
+  type ToastMessage,
+  type ToastTone,
+} from "@/components/ui/Toast";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import {
   reviewSubmission as seed,
   type ReviewRow,
@@ -30,13 +39,34 @@ const LEFT_EARLY_REASONS: LeftEarlyReason[] = [
 ];
 
 export default function ReviewPage() {
+  /* ---------------- Data ---------------- */
   const [rows, setRows] = useState<ReviewRow[]>(seed.rows);
   const [locked, setLocked] = useState(seed.locked);
+
+  /* ---------------- Async state slots (Phase 10) ---------------- */
+  const [loading] = useState(false);
+  const [error] = useState(false);
+
+  /* ---------------- UI state ---------------- */
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [leftEarlyFor, setLeftEarlyFor] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
 
+  /* ---------------- Confirm state ---------------- */
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [confirmFinalise, setConfirmFinalise] = useState(false);
+
+  /* ---------------- Toasts ---------------- */
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const pushToast = (tone: ToastTone, title: string, description?: string) => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts((t) => [...t, { id, tone, title, description }]);
+  };
+  const dismissToast = (id: string) =>
+    setToasts((t) => t.filter((x) => x.id !== id));
+
+  /* ---------------- Derived ---------------- */
   const counts = useMemo(() => {
     let present = 0;
     let absent = 0;
@@ -51,6 +81,7 @@ export default function ReviewPage() {
     return { present, absent, late, leftEarly, total: rows.length };
   }, [rows]);
 
+  /* ---------------- Actions ---------------- */
   const update = (studentId: string, patch: Partial<ReviewRow>) => {
     setRows((prev) =>
       prev.map((r) => (r.studentId === studentId ? { ...r, ...patch } : r))
@@ -63,24 +94,46 @@ export default function ReviewPage() {
     setDirty(false);
     setJustSaved(true);
     setTimeout(() => setJustSaved(false), 2200);
+    pushToast("success", "Changes saved", "Your review edits have been saved.");
   };
 
-  const handleDiscard = () => {
+  const doDiscard = () => {
     setRows(seed.rows);
     setDirty(false);
     setEditingNote(null);
     setLeftEarlyFor(null);
+    setConfirmDiscard(false);
+    pushToast(
+      "info",
+      "Changes discarded",
+      "All unsaved edits have been reverted."
+    );
   };
 
   const toggleLock = () => {
     if (locked) {
       setLocked(false);
+      pushToast(
+        "info",
+        "Attendance unlocked",
+        "You can now edit and re-save records."
+      );
     } else {
-      if (dirty) {
-        handleSave();
-      }
-      setLocked(true);
+      setConfirmFinalise(true);
     }
+  };
+
+  const doFinalise = () => {
+    if (dirty) {
+      handleSave();
+    }
+    setLocked(true);
+    setConfirmFinalise(false);
+    pushToast(
+      "success",
+      "Attendance finalised",
+      `${counts.present} present · ${counts.absent} absent · ${counts.late} late.`
+    );
   };
 
   return (
@@ -89,10 +142,10 @@ export default function ReviewPage() {
       description="Review submitted attendance and manage late / left-early actions."
       actions={
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          {dirty && (
+          {dirty && !locked && (
             <>
               <button
-                onClick={handleDiscard}
+                onClick={() => setConfirmDiscard(true)}
                 className="h-10 sm:h-9 px-3 rounded-md border border-border text-sm font-medium sm:font-normal hover:bg-muted inline-flex items-center justify-center gap-1.5 flex-1 sm:flex-none transition-colors"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
@@ -130,252 +183,345 @@ export default function ReviewPage() {
         </div>
       }
     >
-      {/* Banners */}
-      {justSaved && (
-        <div className="mb-4 flex items-center gap-2 rounded-md border border-success/30 bg-success-light text-success px-4 py-2.5 text-sm">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          Changes saved. (Mock)
+      {/* ================= LOADING (Phase 10) ================= */}
+      {loading ? (
+        <div className="rounded-lg border border-border bg-surface">
+          <LoadingState
+            title="Loading review…"
+            description="Fetching the submitted attendance list."
+          />
         </div>
-      )}
-
-      {locked && (
-        <div className="mb-4 flex items-start gap-3 rounded-md border border-success/30 bg-success-light text-success px-4 py-3 text-sm">
-          <Lock className="h-4 w-4 mt-0.5 shrink-0" />
-          <div>
-            <div className="font-medium">Attendance finalised.</div>
-            <div className="text-xs mt-0.5">
-              Records are locked. Unlock to make further corrections — the Office
-              may need to be notified.
+      ) : error ? (
+        /* ================= ERROR (Phase 10) ================= */
+        <div className="rounded-lg border border-border bg-surface">
+          <ErrorState
+            title="Couldn't load review"
+            description="The server didn't respond. Check your connection and try again."
+            onRetry={() => window.location.reload()}
+          />
+        </div>
+      ) : (
+        <>
+          {/* ================= Banners ================= */}
+          {justSaved && !locked && (
+            <div className="mb-4 flex items-center gap-2 rounded-md border border-success/30 bg-success-light text-success px-4 py-2.5 text-sm">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              Changes saved.
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Submission card */}
-      <div className="rounded-lg border border-border bg-surface mb-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 border-b border-border">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <span className="h-9 w-9 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
-              <Users className="h-4 w-4" />
-            </span>
-            <div className="min-w-0">
-              <div className="text-xs text-muted-foreground truncate">
-                {seed.grade} · {seed.className} · {seed.room}
-              </div>
-              <div className="text-sm font-medium truncate">
-                Submitted by {seed.submittedBy} at {seed.submittedAt}
+          {locked && (
+            <div className="mb-4 flex items-start gap-3 rounded-md border border-success/30 bg-success-light text-success px-4 py-3 text-sm">
+              <Lock className="h-4 w-4 mt-0.5 shrink-0" />
+              <div>
+                <div className="font-medium">Attendance finalised.</div>
+                <div className="text-xs mt-0.5">
+                  Records are locked. Unlock to make further corrections — the
+                  Office may need to be notified.
+                </div>
               </div>
             </div>
-          </div>
-          <div className="text-xs text-muted-foreground font-mono self-start sm:self-auto">
-            {seed.id}
-          </div>
-        </div>
+          )}
 
-        {/* Counters */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
-          <Counter
-            icon={<CheckCircle2 className="h-4 w-4" />}
-            label="Present"
-            value={counts.present}
-            tone="success"
-          />
-          <Counter
-            icon={<XCircle className="h-4 w-4" />}
-            label="Absent"
-            value={counts.absent}
-            tone="danger"
-          />
-          <Counter
-            icon={<Clock className="h-4 w-4" />}
-            label="Late"
-            value={counts.late}
-            tone="warning"
-          />
-          <Counter
-            icon={<LogOut className="h-4 w-4" />}
-            label="Left early"
-            value={counts.leftEarly}
-            tone="muted"
-          />
-        </div>
-      </div>
-
-      {/* Attendance table */}
-      <div className="overflow-x-auto overflow-y-hidden rounded-lg border border-border bg-surface">
-        <table className="w-full text-sm min-w-[750px]">
-          <thead>
-            <tr className="bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
-              <th className="px-4 py-3 font-medium">Student</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Late / Left early</th>
-              <th className="px-4 py-3 font-medium">Note</th>
-              <th className="px-4 py-3 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.studentId} className="border-t border-border align-top">
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-navy text-white grid place-items-center text-xs font-semibold shrink-0">
-                      {initials(r.name)}
-                    </div>
-                    <div className="leading-tight min-w-0">
-                      <div className="font-medium truncate">{r.name}</div>
-                      <div className="text-xs text-muted-foreground font-mono truncate">
-                        {r.studentId}
-                      </div>
-                    </div>
+          {/* ================= Submission card ================= */}
+          <div className="rounded-lg border border-border bg-surface mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 border-b border-border">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <span className="h-9 w-9 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
+                  <Users className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <div className="text-xs text-muted-foreground truncate">
+                    {seed.grade} · {seed.className} · {seed.room}
                   </div>
-                </td>
+                  <div className="text-sm font-medium truncate">
+                    Submitted by {seed.submittedBy} at {seed.submittedAt}
+                  </div>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground font-mono self-start sm:self-auto">
+                {seed.id}
+              </div>
+            </div>
 
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <StatusPill status={r.status} />
-                </td>
+            <div className="grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
+              <Counter
+                icon={<CheckCircle2 className="h-4 w-4" />}
+                label="Present"
+                value={counts.present}
+                tone="success"
+              />
+              <Counter
+                icon={<XCircle className="h-4 w-4" />}
+                label="Absent"
+                value={counts.absent}
+                tone="danger"
+              />
+              <Counter
+                icon={<Clock className="h-4 w-4" />}
+                label="Late"
+                value={counts.late}
+                tone="warning"
+              />
+              <Counter
+                icon={<LogOut className="h-4 w-4" />}
+                label="Left early"
+                value={counts.leftEarly}
+                tone="muted"
+              />
+            </div>
+          </div>
 
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="space-y-1 text-xs">
-                    {r.status === "Late" && r.arrivalTime && (
-                      <div className="inline-flex items-center gap-1.5 text-warning">
-                        <Clock className="h-3 w-3 shrink-0" />
-                        Arrived {r.arrivalTime}
+          {/* ================= Attendance table ================= */}
+          <div className="overflow-x-auto overflow-y-hidden rounded-lg border border-border bg-surface">
+            <table className="w-full text-sm min-w-[750px]">
+              <thead>
+                <tr className="bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
+                  <th className="px-4 py-3 font-medium">Student</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Late / Left early</th>
+                  <th className="px-4 py-3 font-medium">Note</th>
+                  <th className="px-4 py-3 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr
+                    key={r.studentId}
+                    className="border-t border-border align-top"
+                  >
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-navy text-white grid place-items-center text-xs font-semibold shrink-0">
+                          {initials(r.name)}
+                        </div>
+                        <div className="leading-tight min-w-0">
+                          <div className="font-medium truncate">{r.name}</div>
+                          <div className="text-xs text-muted-foreground font-mono truncate">
+                            {r.studentId}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                    {r.leftEarly && r.leftEarlyTime && (
-                      <div className="inline-flex items-center gap-1.5 text-muted-foreground">
-                        <LogOut className="h-3 w-3 shrink-0" />
-                        Left {r.leftEarlyTime}
-                        {r.leftEarlyReason && (
-                          <span className="text-muted-foreground truncate max-w-[120px]">
-                            · {r.leftEarlyReason}
-                          </span>
+                    </td>
+
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <StatusPill status={r.status} />
+                    </td>
+
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="space-y-1 text-xs">
+                        {r.status === "Late" && r.arrivalTime && (
+                          <div className="inline-flex items-center gap-1.5 text-warning tabular-nums">
+                            <Clock className="h-3 w-3 shrink-0" />
+                            Arrived {r.arrivalTime}
+                          </div>
+                        )}
+                        {r.leftEarly && r.leftEarlyTime && (
+                          <div className="inline-flex items-center gap-1.5 text-muted-foreground tabular-nums">
+                            <LogOut className="h-3 w-3 shrink-0" />
+                            Left {r.leftEarlyTime}
+                            {r.leftEarlyReason && (
+                              <span className="text-muted-foreground truncate max-w-[120px]">
+                                · {r.leftEarlyReason}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {r.status !== "Late" && !r.leftEarly && (
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </div>
-                    )}
-                    {r.status !== "Late" && !r.leftEarly && (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </div>
-                </td>
+                    </td>
 
-                <td className="px-4 py-3 max-w-[200px]">
-                  {editingNote === r.studentId ? (
-                    <NoteEditor
-                      initial={r.note ?? ""}
-                      onCancel={() => setEditingNote(null)}
-                      onSave={(note) => {
-                        update(r.studentId, { note: note.trim() || undefined });
-                        setEditingNote(null);
-                      }}
-                    />
-                  ) : r.note ? (
-                    <button
-                      onClick={() => setEditingNote(r.studentId)}
-                      className="text-xs text-left text-foreground hover:underline line-clamp-2"
-                    >
-                      {r.note}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setEditingNote(r.studentId)}
-                      className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 whitespace-nowrap"
-                    >
-                      <StickyNote className="h-3 w-3 shrink-0" />
-                      Add note
-                    </button>
-                  )}
-                </td>
+                    <td className="px-4 py-3 max-w-[200px]">
+                      {editingNote === r.studentId ? (
+                        <NoteEditor
+                          initial={r.note ?? ""}
+                          onCancel={() => setEditingNote(null)}
+                          onSave={(note) => {
+                            update(r.studentId, {
+                              note: note.trim() || undefined,
+                            });
+                            setEditingNote(null);
+                          }}
+                        />
+                      ) : r.note ? (
+                        <button
+                          onClick={() => setEditingNote(r.studentId)}
+                          className="text-xs text-left text-foreground hover:underline line-clamp-2"
+                        >
+                          {r.note}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setEditingNote(r.studentId)}
+                          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 whitespace-nowrap"
+                        >
+                          <StickyNote className="h-3 w-3 shrink-0" />
+                          Add note
+                        </button>
+                      )}
+                    </td>
 
-                <td className="px-4 py-3 text-right whitespace-nowrap">
-                  <div className="flex items-center justify-end gap-1">
-                    <ActionButton
-                      label="Present"
-                      tone="success"
-                      active={r.status === "Present"}
-                      onClick={() =>
-                        update(r.studentId, {
-                          status: "Present",
-                          arrivalTime: undefined,
-                        })
-                      }
-                    />
-                    <ActionButton
-                      label="Absent"
-                      tone="danger"
-                      active={r.status === "Absent"}
-                      onClick={() =>
-                        update(r.studentId, {
-                          status: "Absent",
-                          arrivalTime: undefined,
-                          leftEarly: false,
-                          leftEarlyTime: undefined,
-                          leftEarlyReason: undefined,
-                        })
-                      }
-                    />
-                    <ActionButton
-                      label="Late"
-                      tone="warning"
-                      active={r.status === "Late"}
-                      onClick={() =>
-                        update(r.studentId, {
-                          status: "Late",
-                          arrivalTime: r.arrivalTime ?? "09:00",
-                        })
-                      }
-                    />
-                    <button
-                      onClick={() => setLeftEarlyFor(r.studentId)}
-                      className={`ml-1 h-8 px-2 rounded-md border text-xs inline-flex items-center gap-1 shrink-0 transition-colors ${
-                        r.leftEarly
-                          ? "border-muted-foreground/40 bg-muted text-foreground"
-                          : "border-border text-muted-foreground hover:bg-muted"
-                      }`}
-                      title={r.leftEarly ? "Edit left-early" : "Mark left-early"}
-                    >
-                      <LogOut className="h-3 w-3" />
-                      <span className="hidden sm:inline">Left early</span>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1">
+                        <ActionButton
+                          label="Present"
+                          tone="success"
+                          active={r.status === "Present"}
+                          onClick={() =>
+                            update(r.studentId, {
+                              status: "Present",
+                              arrivalTime: undefined,
+                            })
+                          }
+                        />
+                        <ActionButton
+                          label="Absent"
+                          tone="danger"
+                          active={r.status === "Absent"}
+                          onClick={() =>
+                            update(r.studentId, {
+                              status: "Absent",
+                              arrivalTime: undefined,
+                              leftEarly: false,
+                              leftEarlyTime: undefined,
+                              leftEarlyReason: undefined,
+                            })
+                          }
+                        />
+                        <ActionButton
+                          label="Late"
+                          tone="warning"
+                          active={r.status === "Late"}
+                          onClick={() =>
+                            update(r.studentId, {
+                              status: "Late",
+                              arrivalTime: r.arrivalTime ?? "09:00",
+                            })
+                          }
+                        />
+                        <button
+                          onClick={() => setLeftEarlyFor(r.studentId)}
+                          className={`ml-1 h-8 px-2 rounded-md border text-xs inline-flex items-center gap-1 shrink-0 transition-colors ${
+                            r.leftEarly
+                              ? "border-muted-foreground/40 bg-muted text-foreground"
+                              : "border-border text-muted-foreground hover:bg-muted"
+                          }`}
+                          title={
+                            r.leftEarly ? "Edit left-early" : "Mark left-early"
+                          }
+                        >
+                          <LogOut className="h-3 w-3" />
+                          <span className="hidden sm:inline">Left early</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-      {/* Footer hint */}
-      <div className="mt-3 text-xs text-muted-foreground">
-        {counts.total} students · {counts.absent} absence
-        {counts.absent === 1 ? "" : "s"} need follow-up by the Office.
-      </div>
+          {/* ================= Footer hint ================= */}
+          <div className="mt-3 text-xs text-muted-foreground">
+            {counts.total} students · {counts.absent} absence
+            {counts.absent === 1 ? "" : "s"} need follow-up by the Office.
+          </div>
 
-      {/* Left-early modal */}
-      {leftEarlyFor && (
-        <LeftEarlyModal
-          studentName={rows.find((r) => r.studentId === leftEarlyFor)!.name}
-          initial={rows.find((r) => r.studentId === leftEarlyFor)!}
-          onClose={() => setLeftEarlyFor(null)}
-          onSave={(patch) => {
-            update(leftEarlyFor, patch);
-            setLeftEarlyFor(null);
-          }}
-          onRemove={() => {
-            update(leftEarlyFor, {
-              leftEarly: false,
-              leftEarlyTime: undefined,
-              leftEarlyReason: undefined,
-            });
-            setLeftEarlyFor(null);
-          }}
-        />
+          {/* ================= Left-early modal ================= */}
+          {leftEarlyFor && (
+            <LeftEarlyModal
+              studentName={
+                rows.find((r) => r.studentId === leftEarlyFor)!.name
+              }
+              initial={rows.find((r) => r.studentId === leftEarlyFor)!}
+              onClose={() => setLeftEarlyFor(null)}
+              onSave={(patch) => {
+                const studentName = rows.find(
+                  (r) => r.studentId === leftEarlyFor
+                )!.name;
+                update(leftEarlyFor, patch);
+                setLeftEarlyFor(null);
+                pushToast(
+                  "success",
+                  "Left-early recorded",
+                  `${studentName} marked as left early.`
+                );
+              }}
+              onRemove={() => {
+                const studentName = rows.find(
+                  (r) => r.studentId === leftEarlyFor
+                )!.name;
+                update(leftEarlyFor, {
+                  leftEarly: false,
+                  leftEarlyTime: undefined,
+                  leftEarlyReason: undefined,
+                });
+                setLeftEarlyFor(null);
+                pushToast(
+                  "info",
+                  "Left-early removed",
+                  `${studentName} is no longer marked as left early.`
+                );
+              }}
+            />
+          )}
+
+          {/* ================= CONFIRM DISCARD ================= */}
+          <ConfirmDialog
+            open={confirmDiscard}
+            title="Discard unsaved changes?"
+            message={
+              <>
+                All edits you&apos;ve made on this page will be reverted to the
+                original submitted attendance. This action cannot be undone.
+              </>
+            }
+            confirmLabel="Discard"
+            cancelLabel="Keep editing"
+            tone="warning"
+            icon={<RotateCcw className="h-5 w-5" />}
+            onConfirm={doDiscard}
+            onCancel={() => setConfirmDiscard(false)}
+          />
+
+          {/* ================= CONFIRM FINALISE ================= */}
+          <ConfirmDialog
+            open={confirmFinalise}
+            title="Finalise attendance?"
+            message={
+              <>
+                Finalising locks this attendance record. You&apos;ll need to
+                unlock it (and possibly notify the Office) before making further
+                changes.
+                {dirty && (
+                  <>
+                    {" "}
+                    Your current edits will be saved first.
+                  </>
+                )}
+              </>
+            }
+            confirmLabel="Finalise"
+            cancelLabel="Cancel"
+            tone="warning"
+            icon={<Lock className="h-5 w-5" />}
+            onConfirm={doFinalise}
+            onCancel={() => setConfirmFinalise(false)}
+          />
+
+          {/* ================= TOASTS ================= */}
+          <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+        </>
       )}
     </PageContainer>
   );
 }
 
-/* ---------------- sub-components ---------------- */
+/* =========================================================
+   Sub-components
+   ========================================================= */
 
 function initials(name: string) {
   return name
@@ -422,12 +568,14 @@ function Counter({
 function StatusPill({ status }: { status: ReviewStatus }) {
   const cls =
     status === "Present"
-      ? "bg-success-light text-success"
+      ? "bg-success-light text-success border border-success/20"
       : status === "Absent"
-      ? "bg-danger-light text-danger"
-      : "bg-warning-light text-warning";
+      ? "bg-danger-light text-danger border border-danger/20"
+      : "bg-warning-light text-warning border border-warning/20";
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${cls}`}>
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${cls}`}
+    >
       {status}
     </span>
   );
@@ -528,11 +676,17 @@ function LeftEarlyModal({
   const canSave = Boolean(time) && Boolean(reason);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-sm rounded-xl bg-surface border border-border shadow-xl max-h-[95dvh] flex flex-col">
+
+      <div className="relative w-full sm:max-w-sm max-h-[92vh] sm:max-h-[90vh] rounded-t-2xl sm:rounded-lg bg-surface border border-border shadow-xl flex flex-col overflow-hidden">
+        {/* Grabber (mobile) */}
+        <div className="sm:hidden flex justify-center pt-2">
+          <span className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+        </div>
+
         <div className="flex items-center justify-between px-4 sm:px-5 h-14 border-b border-border shrink-0">
-          <h2 className="text-sm font-semibold">Mark left early</h2>
+          <h2 className="text-sm font-semibold">Mark Left Early</h2>
           <button
             onClick={onClose}
             className="text-xs text-muted-foreground hover:text-foreground p-1.5 rounded-md"
@@ -543,7 +697,8 @@ function LeftEarlyModal({
 
         <div className="p-4 sm:p-5 space-y-4 overflow-y-auto">
           <div className="text-sm text-muted-foreground truncate">
-            Student: <span className="text-foreground font-medium">{studentName}</span>
+            Student:{" "}
+            <span className="text-foreground font-medium">{studentName}</span>
           </div>
 
           <div>
@@ -554,7 +709,7 @@ function LeftEarlyModal({
               type="time"
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="h-10 sm:h-9 w-full rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
+              className="h-11 sm:h-9 w-full rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
             />
           </div>
 
@@ -564,8 +719,10 @@ function LeftEarlyModal({
             </label>
             <select
               value={reason}
-              onChange={(e) => setReason(e.target.value as LeftEarlyReason | "")}
-              className="h-10 sm:h-9 w-full rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
+              onChange={(e) =>
+                setReason(e.target.value as LeftEarlyReason | "")
+              }
+              className="h-11 sm:h-9 w-full rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
             >
               <option value="">Select a reason…</option>
               {LEFT_EARLY_REASONS.map((r) => (
@@ -586,7 +743,7 @@ function LeftEarlyModal({
           {initial.leftEarly ? (
             <button
               onClick={onRemove}
-              className="w-full sm:w-auto h-10 sm:h-9 px-3 rounded-md text-sm text-danger hover:bg-danger-light transition"
+              className="w-full sm:w-auto h-11 sm:h-9 px-3 rounded-md text-sm text-danger hover:bg-danger-light transition"
             >
               Remove
             </button>
@@ -596,7 +753,7 @@ function LeftEarlyModal({
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={onClose}
-              className="w-full sm:w-auto h-10 sm:h-9 px-4 rounded-md border border-border text-sm font-medium hover:bg-muted transition"
+              className="w-full sm:w-auto h-11 sm:h-9 px-4 rounded-md border border-border text-sm font-medium hover:bg-muted transition"
             >
               Cancel
             </button>
@@ -609,7 +766,7 @@ function LeftEarlyModal({
                   leftEarlyReason: reason as LeftEarlyReason,
                 })
               }
-              className="w-full sm:w-auto h-10 sm:h-9 px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto h-11 sm:h-9 px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Save
             </button>

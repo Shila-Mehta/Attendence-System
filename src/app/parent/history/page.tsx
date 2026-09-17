@@ -11,7 +11,17 @@ import {
   TrendingUp,
   XCircle,
 } from "lucide-react";
+
 import { ParentShell } from "@/components/layout/ParentShell";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import {
+  ToastContainer,
+  type ToastMessage,
+  type ToastTone,
+} from "@/components/ui/Toast";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import {
   parentAlerts,
   parentChild,
@@ -52,9 +62,15 @@ function monthLabel(key: string) {
 export default function ParentHistoryPage() {
   const unreadAlerts = parentAlerts.filter((a) => !a.read).length;
 
-  // Local state for records to enable deletion
-  const [records, setRecords] = useState<ParentAttendanceRecord[]>(initialRecords);
+  /* ---------------- Data ---------------- */
+  const [records, setRecords] =
+    useState<ParentAttendanceRecord[]>(initialRecords);
 
+  /* ---------------- Async state slots (Phase 10) ---------------- */
+  const [loading] = useState(false);
+  const [error] = useState(false);
+
+  /* ---------------- Filters ---------------- */
   const months = useMemo(() => {
     const set = new Set(records.map((r) => monthKey(r.date)));
     return Array.from(set).sort().reverse();
@@ -63,6 +79,20 @@ export default function ParentHistoryPage() {
   const [month, setMonth] = useState<string>(months[0] ?? "");
   const [status, setStatus] = useState<StatusFilter>("all");
 
+  /* ---------------- Confirm state ---------------- */
+  const [pendingDelete, setPendingDelete] =
+    useState<ParentAttendanceRecord | null>(null);
+
+  /* ---------------- Toasts ---------------- */
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const pushToast = (tone: ToastTone, title: string, description?: string) => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts((t) => [...t, { id, tone, title, description }]);
+  };
+  const dismissToast = (id: string) =>
+    setToasts((t) => t.filter((x) => x.id !== id));
+
+  /* ---------------- Derived ---------------- */
   const filtered = useMemo(() => {
     return records
       .filter((r) => (month ? monthKey(r.date) === month : true))
@@ -106,194 +136,252 @@ export default function ParentHistoryPage() {
     },
   ];
 
-  const handleDelete = (date: string) => {
-    setRecords((prev) => prev.filter((r) => r.date !== date));
+  const hasFilters = status !== "all";
+
+  const clearFilters = () => {
+    setStatus("all");
   };
 
-  // Dynamically group KPIs to satisfy the mobile grid requirement
-  const kpiData = [
-    {
-      id: "present",
-      icon: <CheckCircle2 className="h-4 w-4" />,
-      label: "Present",
-      value: counts.present,
-      tone: "success" as const,
-    },
-    {
-      id: "absent",
-      icon: <XCircle className="h-4 w-4" />,
-      label: "Absent",
-      value: counts.absent,
-      tone: "danger" as const,
-    },
-    {
-      id: "late",
-      icon: <Clock className="h-4 w-4" />,
-      label: "Late",
-      value: counts.late,
-      tone: "warning" as const,
-    },
-  ];
-
-  // Mobile layout logic: 2 columns if exactly 4, 1 column if 3.
-  const kpiGridClass =
-    kpiData.length === 4
-      ? "grid-cols-2 lg:grid-cols-4"
-      : kpiData.length === 3
-      ? "grid-cols-1 md:grid-cols-3"
-      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
+  /* ---------------- Actions ---------------- */
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    const removed = pendingDelete;
+    setRecords((prev) => prev.filter((r) => r.date !== removed.date));
+    setPendingDelete(null);
+    pushToast(
+      "success",
+      "Record removed",
+      `${formatLong(removed.date)} was removed from your view.`
+    );
+  };
 
   return (
-    <ParentShell
-      childName={parentChild.name}
-      childClass={`${parentChild.grade} · ${parentChild.class}`}
-      childOptions={childOptions}
-      alertCount={unreadAlerts}
-    >
-      {/* ================= Heading ================= */}
-      <section className="mb-5">
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
-          Attendance history
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Every day {parentChild.name.split(" ")[0]} has been marked since
-          enrolment.
-        </p>
-      </section>
-
-      {/* ================= Overall summary ================= */}
-      <section className="rounded-lg border border-border bg-surface p-4 sm:p-5 mb-5">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="h-11 w-11 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
-              <TrendingUp className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-xs text-muted-foreground">
-                Overall attendance rate
-              </div>
-              <div className="text-2xl font-semibold tabular-nums">
-                {overall.rate}%
-              </div>
-            </div>
+    <>
+      <ParentShell
+        childName={parentChild.name}
+        childClass={`${parentChild.grade} · ${parentChild.class}`}
+        childOptions={childOptions}
+        alertCount={unreadAlerts}
+      >
+        {loading ? (
+          <div className="rounded-lg border border-border bg-surface">
+            <LoadingState
+              title="Loading attendance history…"
+              description="Fetching records from the server."
+            />
           </div>
-
-          <div className="grid grid-cols-3 gap-4 sm:gap-8 text-center shrink-0">
-            <MiniStat label="Present" value={overall.present} tone="success" />
-            <MiniStat label="Absent" value={overall.absent} tone="danger" />
-            <MiniStat label="Late" value={overall.late} tone="warning" />
-          </div>
-        </div>
-      </section>
-
-      {/* ================= Filters ================= */}
-      <section className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-4">
-        <div className="relative">
-          <CalendarDays className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <select
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className="appearance-none w-full sm:w-auto h-9 pl-9 pr-9 rounded-md border border-input bg-surface text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
-          >
-            {months.map((m) => (
-              <option key={m} value={m}>
-                {monthLabel(m)}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        </div>
-
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
-          <Filter className="h-3.5 w-3.5 text-muted-foreground mr-1 shrink-0" />
-          <FilterTab
-            active={status === "all"}
-            onClick={() => setStatus("all")}
-            count={monthRecords.length}
-          >
-            All
-          </FilterTab>
-          <FilterTab
-            active={status === "Present"}
-            onClick={() => setStatus("Present")}
-            count={counts.present}
-          >
-            Present
-          </FilterTab>
-          <FilterTab
-            active={status === "Absent"}
-            onClick={() => setStatus("Absent")}
-            count={counts.absent}
-          >
-            Absent
-          </FilterTab>
-          <FilterTab
-            active={status === "Late"}
-            onClick={() => setStatus("Late")}
-            count={counts.late}
-          >
-            Late
-          </FilterTab>
-        </div>
-      </section>
-
-      {/* ================= Month summary ================= */}
-      <section className={`grid ${kpiGridClass} gap-3 sm:gap-4 mb-4`}>
-        {kpiData.map((kpi) => (
-          <MonthCard key={kpi.id} {...kpi} />
-        ))}
-      </section>
-
-      {/* ================= Records ================= */}
-      <section className="rounded-lg border border-border bg-surface">
-        <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-border">
-          <div>
-            <h2 className="text-sm font-semibold">
-              {month ? monthLabel(month) : "Attendance records"}
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {filtered.length} record{filtered.length === 1 ? "" : "s"}
-            </p>
-          </div>
-        </div>
-
-        {filtered.length === 0 ? (
-          <div className="px-5 py-16 text-center text-sm text-muted-foreground">
-            No records match your filters.
+        ) : error ? (
+          <div className="rounded-lg border border-border bg-surface">
+            <ErrorState
+              title="Couldn't load attendance history"
+              description="The server didn't respond. Check your connection and try again."
+              onRetry={() => window.location.reload()}
+            />
           </div>
         ) : (
           <>
-            {/* Column header — desktop only */}
-            <div
-              className="hidden sm:grid items-center gap-5 px-5 py-2.5
-                         border-b border-border bg-muted/20
-                         text-[11px] uppercase tracking-wider text-muted-foreground
-                         sm:grid-cols-[170px_110px_minmax(0,1fr)_40px]"
-            >
-              <div>Date</div>
-              <div>Status</div>
-              <div>Details</div>
-              <div className="text-right">Action</div>
-            </div>
+            {/* ================= Heading ================= */}
+            <section className="mb-5">
+              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
+                Attendance history
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Every day {parentChild.name.split(" ")[0]} has been marked since
+                enrolment.
+              </p>
+            </section>
 
-            <ul className="divide-y divide-border">
-              {filtered.map((r) => (
-                <RecordRow
-                  key={r.date}
-                  record={r}
-                  onDelete={() => handleDelete(r.date)}
+            {/* ================= Overall summary ================= */}
+            <section className="rounded-lg border border-border bg-surface p-4 sm:p-5 mb-5">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="h-11 w-11 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs text-muted-foreground">
+                      Overall attendance rate
+                    </div>
+                    <div className="text-2xl font-semibold tabular-nums">
+                      {overall.rate}%
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 sm:gap-8 text-center shrink-0">
+                  <MiniStat
+                    label="Present"
+                    value={overall.present}
+                    tone="success"
+                  />
+                  <MiniStat label="Absent" value={overall.absent} tone="danger" />
+                  <MiniStat label="Late" value={overall.late} tone="warning" />
+                </div>
+              </div>
+            </section>
+
+            {/* ================= Filters ================= */}
+            <section className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-4">
+              <div className="relative">
+                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <select
+                  value={month}
+                  onChange={(e) => setMonth(e.target.value)}
+                  className="appearance-none w-full sm:w-auto h-10 sm:h-9 pl-9 pr-9 rounded-md border border-input bg-surface text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
+                >
+                  {months.map((m) => (
+                    <option key={m} value={m}>
+                      {monthLabel(m)}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              </div>
+
+              <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+                <Filter className="h-3.5 w-3.5 text-muted-foreground mr-1 shrink-0" />
+                <FilterTab
+                  active={status === "all"}
+                  onClick={() => setStatus("all")}
+                  count={monthRecords.length}
+                >
+                  All
+                </FilterTab>
+                <FilterTab
+                  active={status === "Present"}
+                  onClick={() => setStatus("Present")}
+                  count={counts.present}
+                >
+                  Present
+                </FilterTab>
+                <FilterTab
+                  active={status === "Absent"}
+                  onClick={() => setStatus("Absent")}
+                  count={counts.absent}
+                >
+                  Absent
+                </FilterTab>
+                <FilterTab
+                  active={status === "Late"}
+                  onClick={() => setStatus("Late")}
+                  count={counts.late}
+                >
+                  Late
+                </FilterTab>
+              </div>
+            </section>
+
+            {/* ================= Month summary ================= */}
+            <section className="grid grid-cols-3 gap-3 sm:gap-4 mb-4">
+              <MonthCard
+                icon={<CheckCircle2 className="h-4 w-4" />}
+                label="Present"
+                value={counts.present}
+                tone="success"
+              />
+              <MonthCard
+                icon={<XCircle className="h-4 w-4" />}
+                label="Absent"
+                value={counts.absent}
+                tone="danger"
+              />
+              <MonthCard
+                icon={<Clock className="h-4 w-4" />}
+                label="Late"
+                value={counts.late}
+                tone="warning"
+              />
+            </section>
+
+            {/* ================= Records ================= */}
+            <section className="rounded-lg border border-border bg-surface">
+              <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-border">
+                <div>
+                  <h2 className="text-sm font-semibold">
+                    {month ? monthLabel(month) : "Attendance records"}
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {filtered.length} record{filtered.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+              </div>
+
+              {filtered.length === 0 ? (
+                <EmptyState
+                  icon={<CalendarDays className="h-5 w-5" />}
+                  title="No records match your filters"
+                  description="Try selecting a different month or status."
+                  action={
+                    hasFilters ? (
+                      <button
+                        onClick={clearFilters}
+                        className="h-9 px-4 rounded-md border border-border text-sm font-medium hover:bg-muted transition"
+                      >
+                        Clear filters
+                      </button>
+                    ) : undefined
+                  }
                 />
-              ))}
-            </ul>
+              ) : (
+                <>
+                  {/* Column header — desktop only */}
+                  <div
+                    className="hidden sm:grid items-center gap-5 px-5 py-2.5
+                               border-b border-border bg-muted/20
+                               text-[11px] uppercase tracking-wider text-muted-foreground
+                               sm:grid-cols-[170px_110px_minmax(0,1fr)_40px]"
+                  >
+                    <div>Date</div>
+                    <div>Status</div>
+                    <div>Details</div>
+                    <div className="text-right">Action</div>
+                  </div>
+
+                  <ul className="divide-y divide-border">
+                    {filtered.map((r) => (
+                      <RecordRow
+                        key={r.date}
+                        record={r}
+                        onDelete={() => setPendingDelete(r)}
+                      />
+                    ))}
+                  </ul>
+                </>
+              )}
+            </section>
+
+            <p className="mt-4 text-[11px] text-muted-foreground text-center">
+              Records are kept for 2 years. Older records can be requested from
+              the school office.
+            </p>
           </>
         )}
-      </section>
+      </ParentShell>
 
-      <p className="mt-4 text-[11px] text-muted-foreground text-center">
-        Records are kept for 2 years. Older records can be requested from the
-        school office.
-      </p>
-    </ParentShell>
+      {/* ================= CONFIRM DELETE ================= */}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Remove this record?"
+        message={
+          <>
+            <span className="font-medium text-foreground">
+              {pendingDelete ? formatLong(pendingDelete.date) : ""}
+            </span>{" "}
+            will be removed from your view only. The school&apos;s official
+            attendance record is not affected.
+          </>
+        }
+        confirmLabel="Remove"
+        cancelLabel="Keep"
+        tone="danger"
+        icon={<Trash2 className="h-5 w-5" />}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
+
+      {/* ================= TOASTS ================= */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+    </>
   );
 }
 
@@ -347,7 +435,9 @@ function MonthCard({
         {icon}
         <span className="truncate">{label}</span>
       </div>
-      <div className={`mt-1 text-xl sm:text-2xl font-semibold ${cls} tabular-nums`}>
+      <div
+        className={`mt-1 text-xl sm:text-2xl font-semibold ${cls} tabular-nums`}
+      >
         {value}
       </div>
     </div>
@@ -369,9 +459,7 @@ function FilterTab({
     <button
       onClick={onClick}
       className={`h-8 px-3 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 shrink-0 ${
-        active
-          ? "bg-navy text-white"
-          : "text-muted-foreground hover:bg-muted"
+        active ? "bg-navy text-white" : "text-muted-foreground hover:bg-muted"
       }`}
     >
       {children}
@@ -419,7 +507,7 @@ function RecordRow({
       </div>
 
       {/* Col 3 — Details */}
-      <div className="text-sm text-muted-foreground truncate">
+      <div className="col-span-2 sm:col-span-1 text-sm text-muted-foreground truncate">
         {record.status === "Late" && record.arrivalTime ? (
           <>
             Arrived at{" "}
@@ -436,7 +524,7 @@ function RecordRow({
       </div>
 
       {/* Col 4 — Action (Delete) */}
-      <div className="flex justify-end">
+      <div className="col-span-2 sm:col-span-1 flex justify-end">
         <button
           onClick={onDelete}
           className="p-1.5 rounded-md text-muted-foreground hover:bg-danger-light hover:text-danger transition-colors shrink-0"

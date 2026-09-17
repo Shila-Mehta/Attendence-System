@@ -5,12 +5,23 @@ import {
   Bell,
   CheckCircle2,
   ChevronLeft,
+  FileWarning,
   Phone,
   Search,
   ShieldAlert,
   Trash2,
 } from "lucide-react";
+
 import { PageContainer } from "@/components/layout/PageContainer";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import {
+  ToastContainer,
+  type ToastMessage,
+  type ToastTone,
+} from "@/components/ui/Toast";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import {
   unexplainedCases as seed,
   type UnexplainedCase,
@@ -19,14 +30,40 @@ import {
 type Filter = "open" | "closed" | "all";
 
 export default function UnexplainedAbsencePage() {
+  /* ---------------- Data ---------------- */
   const [rows, setRows] = useState<UnexplainedCase[]>(seed);
+
+  /* ---------------- Async state slots (Phase 10) ---------------- */
+  const [loading] = useState(false);
+  const [error] = useState(false);
+
+  /* ---------------- Filters ---------------- */
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("open");
+
+  /* ---------------- Selection ---------------- */
   const [selectedId, setSelectedId] = useState<string | null>(
     seed[0]?.id ?? null
   );
   const [mobileShowDetail, setMobileShowDetail] = useState(false);
 
+  /* ---------------- Confirm state ---------------- */
+  const [pendingDelete, setPendingDelete] = useState<UnexplainedCase | null>(
+    null
+  );
+  const [pendingEscalate, setPendingEscalate] =
+    useState<UnexplainedCase | null>(null);
+
+  /* ---------------- Toasts ---------------- */
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const pushToast = (tone: ToastTone, title: string, description?: string) => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts((t) => [...t, { id, tone, title, description }]);
+  };
+  const dismissToast = (id: string) =>
+    setToasts((t) => t.filter((x) => x.id !== id));
+
+  /* ---------------- Derived ---------------- */
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((r) => {
@@ -55,6 +92,14 @@ export default function UnexplainedAbsencePage() {
     (r) => r.status === "Awaiting parent" || r.status === "Parent responded"
   ).length;
 
+  const hasFilters = query.trim().length > 0 || filter !== "open";
+
+  const clearFilters = () => {
+    setQuery("");
+    setFilter("open");
+  };
+
+  /* ---------------- Actions ---------------- */
   const update = (id: string, patch: Partial<UnexplainedCase>) => {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   };
@@ -64,22 +109,51 @@ export default function UnexplainedAbsencePage() {
     const hh = String(now.getHours()).padStart(2, "0");
     const mm = String(now.getMinutes()).padStart(2, "0");
     update(r.id, { notifiedAt: `${hh}:${mm}` });
+    pushToast(
+      "success",
+      "Guardian notified",
+      `${r.guardianName} was alerted at ${hh}:${mm}.`
+    );
   };
 
   const resolve = (r: UnexplainedCase, note: string) => {
     update(r.id, { status: "Resolved", note });
+    pushToast(
+      "success",
+      "Case resolved",
+      `${r.studentName}'s absence has been closed.`
+    );
   };
 
-  const escalate = (r: UnexplainedCase) => {
-    update(r.id, { status: "Escalated", note: "No response in 24 hours." });
+  const confirmEscalate = () => {
+    if (!pendingEscalate) return;
+    const target = pendingEscalate;
+    update(target.id, {
+      status: "Escalated",
+      note: "No response in 24 hours.",
+    });
+    setPendingEscalate(null);
+    pushToast(
+      "warning",
+      "Escalated to Principal",
+      `${target.studentName}'s case has been forwarded.`
+    );
   };
 
-  const handleDelete = (id: string) => {
-    setRows((prev) => prev.filter((r) => r.id !== id));
-    if (selectedId === id) {
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    const removed = pendingDelete;
+    setRows((prev) => prev.filter((r) => r.id !== removed.id));
+    if (selectedId === removed.id) {
       setSelectedId(null);
       setMobileShowDetail(false);
     }
+    setPendingDelete(null);
+    pushToast(
+      "success",
+      "Case removed",
+      `${removed.studentName}'s case was deleted from the queue.`
+    );
   };
 
   const selectRow = (id: string) => {
@@ -92,100 +166,190 @@ export default function UnexplainedAbsencePage() {
       title="Unexplained Absence Queue"
       description="View and manage unexplained absences."
     >
-      {/* ================= Split view ================= */}
-      <div className="rounded-lg border border-border bg-surface overflow-hidden">
-        <div className="grid md:grid-cols-[360px_minmax(0,1fr)] min-h-[600px]">
-          {/* ---------- LEFT: list ---------- */}
-          <div
-            className={`border-b md:border-b-0 md:border-r border-border flex flex-col ${
-              mobileShowDetail ? "hidden md:flex" : "flex"
-            }`}
-          >
-            {/* Search + filter */}
-            <div className="p-4 border-b border-border space-y-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search student or guardian…"
-                  className="w-full h-9 rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
-                />
-              </div>
-
+      {loading ? (
+        /* ================= LOADING (Phase 10) ================= */
+        <div className="rounded-lg border border-border bg-surface">
+          <LoadingState
+            title="Loading queue…"
+            description="Fetching unexplained absences from the server."
+          />
+        </div>
+      ) : error ? (
+        /* ================= ERROR (Phase 10) ================= */
+        <div className="rounded-lg border border-border bg-surface">
+          <ErrorState
+            title="Couldn't load the queue"
+            description="The server didn't respond. Check your connection and try again."
+            onRetry={() => window.location.reload()}
+          />
+        </div>
+      ) : (
+        <>
+          {/* ================= Split view ================= */}
+          <div className="rounded-lg border border-border bg-surface overflow-hidden">
+            <div className="grid md:grid-cols-[360px_minmax(0,1fr)] min-h-[600px]">
+              {/* ---------- LEFT: list ---------- */}
               <div
-                className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0"
-                style={{ scrollbarWidth: "none" }}
+                className={`border-b md:border-b-0 md:border-r border-border flex flex-col ${
+                  mobileShowDetail ? "hidden md:flex" : "flex"
+                }`}
               >
-                <FilterTab
-                  active={filter === "open"}
-                  onClick={() => setFilter("open")}
-                >
-                  Open ({openCount})
-                </FilterTab>
-                <FilterTab
-                  active={filter === "closed"}
-                  onClick={() => setFilter("closed")}
-                >
-                  Closed ({rows.length - openCount})
-                </FilterTab>
-                <FilterTab
-                  active={filter === "all"}
-                  onClick={() => setFilter("all")}
-                >
-                  All
-                </FilterTab>
-              </div>
-            </div>
-
-            {/* List */}
-            <ul className="flex-1 overflow-y-auto divide-y divide-border">
-              {filtered.length === 0 ? (
-                <li className="px-5 py-12 text-center text-sm text-muted-foreground">
-                  No cases match.
-                </li>
-              ) : (
-                filtered.map((r) => (
-                  <li key={r.id}>
-                    <CaseListItem
-                      caseItem={r}
-                      selected={r.id === selectedId}
-                      onClick={() => selectRow(r.id)}
-                      onDelete={() => handleDelete(r.id)}
+                {/* Search + filter */}
+                <div className="p-4 border-b border-border space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search student or guardian…"
+                      className="w-full h-10 sm:h-9 rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
                     />
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>
+                  </div>
 
-          {/* ---------- RIGHT: detail ---------- */}
-          <div
-            className={`flex flex-col ${
-              mobileShowDetail ? "flex" : "hidden md:flex"
-            }`}
-          >
-            {selected ? (
-              <DetailPane
-                caseItem={selected}
-                onNotify={() => notify(selected)}
-                onResolve={(note) => resolve(selected, note)}
-                onEscalate={() => escalate(selected)}
-                onBack={() => setMobileShowDetail(false)}
-              />
-            ) : (
-              <div className="flex-1 flex items-center justify-center px-6 py-16 text-center">
-                <div>
-                  <div className="text-sm font-medium">No case selected</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Pick a case from the list to see details.
+                  <div
+                    className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0"
+                    style={{ scrollbarWidth: "none" }}
+                  >
+                    <FilterTab
+                      active={filter === "open"}
+                      onClick={() => setFilter("open")}
+                    >
+                      Open ({openCount})
+                    </FilterTab>
+                    <FilterTab
+                      active={filter === "closed"}
+                      onClick={() => setFilter("closed")}
+                    >
+                      Closed ({rows.length - openCount})
+                    </FilterTab>
+                    <FilterTab
+                      active={filter === "all"}
+                      onClick={() => setFilter("all")}
+                    >
+                      All
+                    </FilterTab>
                   </div>
                 </div>
+
+                {/* List */}
+                <ul className="flex-1 overflow-y-auto divide-y divide-border">
+                  {filtered.length === 0 ? (
+                    <li>
+                      {rows.length === 0 ? (
+                        <EmptyState
+                          icon={<FileWarning className="h-5 w-5" />}
+                          title="Queue is empty"
+                          description="No unexplained absences have been recorded."
+                        />
+                      ) : (
+                        <EmptyState
+                          icon={<FileWarning className="h-5 w-5" />}
+                          title="No cases match"
+                          description="Try adjusting your search or filter."
+                          action={
+                            hasFilters ? (
+                              <button
+                                onClick={clearFilters}
+                                className="h-9 px-4 rounded-md border border-border text-sm font-medium hover:bg-muted transition"
+                              >
+                                Clear filters
+                              </button>
+                            ) : undefined
+                          }
+                        />
+                      )}
+                    </li>
+                  ) : (
+                    filtered.map((r) => (
+                      <li key={r.id}>
+                        <CaseListItem
+                          caseItem={r}
+                          selected={r.id === selectedId}
+                          onClick={() => selectRow(r.id)}
+                          onDelete={() => setPendingDelete(r)}
+                        />
+                      </li>
+                    ))
+                  )}
+                </ul>
               </div>
-            )}
+
+              {/* ---------- RIGHT: detail ---------- */}
+              <div
+                className={`flex flex-col ${
+                  mobileShowDetail ? "flex" : "hidden md:flex"
+                }`}
+              >
+                {selected ? (
+                  <DetailPane
+                    caseItem={selected}
+                    onNotify={() => notify(selected)}
+                    onResolve={(note) => resolve(selected, note)}
+                    onEscalate={() => setPendingEscalate(selected)}
+                    onBack={() => setMobileShowDetail(false)}
+                  />
+                ) : (
+                  <div className="flex-1 flex items-center justify-center px-6 py-16 text-center">
+                    <div>
+                      <div className="text-sm font-medium">No case selected</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Pick a case from the list to see details.
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+
+          {/* ================= CONFIRM DELETE ================= */}
+          <ConfirmDialog
+            open={pendingDelete !== null}
+            title="Delete case?"
+            message={
+              <>
+                <span className="font-medium text-foreground">
+                  {pendingDelete?.studentName}
+                </span>{" "}
+                · {pendingDelete?.grade} · {pendingDelete?.className} will be
+                permanently removed from the queue. This action cannot be
+                undone.
+              </>
+            }
+            confirmLabel="Delete case"
+            cancelLabel="Keep"
+            tone="danger"
+            icon={<Trash2 className="h-5 w-5" />}
+            onConfirm={confirmDelete}
+            onCancel={() => setPendingDelete(null)}
+          />
+
+          {/* ================= CONFIRM ESCALATE ================= */}
+          <ConfirmDialog
+            open={pendingEscalate !== null}
+            title="Escalate to Principal?"
+            message={
+              <>
+                <span className="font-medium text-foreground">
+                  {pendingEscalate?.studentName}
+                </span>
+                &apos;s case will be forwarded to the Principal because the
+                guardian hasn&apos;t responded. The case will be marked as
+                Escalated.
+              </>
+            }
+            confirmLabel="Escalate"
+            cancelLabel="Cancel"
+            tone="warning"
+            icon={<ShieldAlert className="h-5 w-5" />}
+            onConfirm={confirmEscalate}
+            onCancel={() => setPendingEscalate(null)}
+          />
+
+          {/* ================= TOASTS ================= */}
+          <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+        </>
+      )}
     </PageContainer>
   );
 }

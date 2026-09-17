@@ -11,7 +11,15 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+
 import { ParentShell } from "@/components/layout/ParentShell";
+import {
+  ToastContainer,
+  type ToastMessage,
+  type ToastTone,
+} from "@/components/ui/Toast";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import {
   absenceReasons,
   parentAlerts,
@@ -31,6 +39,12 @@ const toISO = (d: Date) =>
 
 export default function ReportAbsencePage() {
   const today = new Date();
+
+  /* ---------------- Async state slots (Phase 10) ---------------- */
+  const [loading] = useState(false);
+  const [error] = useState(false);
+
+  /* ---------------- Form state ---------------- */
   const [reason, setReason] = useState<AbsenceReasonId | "">("");
   const [fromDate, setFromDate] = useState<string>(toISO(today));
   const [toDate, setToDate] = useState<string>(toISO(today));
@@ -38,6 +52,15 @@ export default function ReportAbsencePage() {
   const [file, setFile] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  /* ---------------- Toasts ---------------- */
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const pushToast = (tone: ToastTone, title: string, description?: string) => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts((t) => [...t, { id, tone, title, description }]);
+  };
+  const dismissToast = (id: string) =>
+    setToasts((t) => t.filter((x) => x.id !== id));
 
   const unreadAlerts = parentAlerts.filter((a) => !a.read).length;
 
@@ -49,6 +72,7 @@ export default function ReportAbsencePage() {
     return diff > 0 ? diff : 0;
   }, [fromDate, toDate]);
 
+  /* ---------------- Actions ---------------- */
   const validate = () => {
     const next: Record<string, string> = {};
     if (!reason) next.reason = "Please select a reason.";
@@ -64,7 +88,16 @@ export default function ReportAbsencePage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+
+    if (!validate()) {
+      pushToast(
+        "warning",
+        "Please review the form",
+        "Some fields need your attention before submitting."
+      );
+      return;
+    }
+
     console.log("ABSENCE REPORTED (mock):", {
       studentId: parentChild.studentId,
       reason,
@@ -74,7 +107,15 @@ export default function ReportAbsencePage() {
       notes,
       file,
     });
+
     setSubmitted(true);
+    pushToast(
+      "success",
+      "Absence reported",
+      `${parentChild.name.split(" ")[0]} · ${dayCount} school day${
+        dayCount === 1 ? "" : "s"
+      } · awaiting office confirmation.`
+    );
   };
 
   const reset = () => {
@@ -85,263 +126,326 @@ export default function ReportAbsencePage() {
     setErrors({});
     setFromDate(toISO(today));
     setToDate(toISO(today));
+    pushToast(
+      "info",
+      "Form reset",
+      "You can report another absence."
+    );
+  };
+
+  const handleAttach = () => {
+    setFile("medical-note.pdf");
+    pushToast(
+      "info",
+      "Attachment added",
+      "medical-note.pdf will be sent with your report."
+    );
+  };
+
+  const handleRemoveAttachment = () => {
+    setFile(null);
+    pushToast("info", "Attachment removed");
   };
 
   return (
-    <ParentShell
-      childName={parentChild.name}
-      childClass={`${parentChild.grade} · ${parentChild.class}`}
-      alertCount={unreadAlerts}
-    >
-      {submitted ? (
-        <SuccessState
-          reason={absenceReasons.find((r) => r.id === reason)?.label ?? ""}
-          dayCount={dayCount}
-          fromDate={fromDate}
-          toDate={toDate}
-          onReset={reset}
-        />
-      ) : (
-        <>
-          <section className="mb-5 sm:mb-6">
-            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
-              Report an absence
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Let the school know in advance so attendance is marked correctly.
-            </p>
-          </section>
+    <>
+      <ParentShell
+        childName={parentChild.name}
+        childClass={`${parentChild.grade} · ${parentChild.class}`}
+        alertCount={unreadAlerts}
+      >
+        {loading ? (
+          <div className="rounded-lg border border-border bg-surface">
+            <LoadingState
+              title="Loading form…"
+              description="Preparing the absence report."
+            />
+          </div>
+        ) : error ? (
+          <div className="rounded-lg border border-border bg-surface">
+            <ErrorState
+              title="Couldn't load the form"
+              description="The server didn't respond. Check your connection and try again."
+              onRetry={() => window.location.reload()}
+            />
+          </div>
+        ) : submitted ? (
+          <SuccessState
+            reason={absenceReasons.find((r) => r.id === reason)?.label ?? ""}
+            dayCount={dayCount}
+            fromDate={fromDate}
+            toDate={toDate}
+            onReset={reset}
+          />
+        ) : (
+          <>
+            <section className="mb-5 sm:mb-6">
+              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
+                Report an absence
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Let the school know in advance so attendance is marked
+                correctly.
+              </p>
+            </section>
 
-          <form onSubmit={handleSubmit} className="grid gap-5 sm:gap-6 lg:grid-cols-[1fr_320px]">
-            {/* Main column */}
-            <div className="space-y-5 sm:space-y-6">
-              {/* Child (read-only) */}
-              <Card>
-                <CardHeader
-                  icon={<FileWarning className="h-4 w-4" />}
-                  title="Student"
-                  desc="Absence is reported for this student."
-                />
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-navy text-white grid place-items-center text-sm font-semibold shrink-0">
-                    {parentChild.name
-                      .split(" ")
-                      .filter(Boolean)
-                      .slice(0, 2)
-                      .map((p) => p[0]?.toUpperCase())
-                      .join("")}
-                  </div>
-                  <div className="leading-tight min-w-0">
-                    <div className="text-sm font-medium truncate">{parentChild.name}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {parentChild.grade} · {parentChild.class} · {parentChild.room}
+            <form
+              onSubmit={handleSubmit}
+              className="grid gap-5 sm:gap-6 lg:grid-cols-[1fr_320px]"
+            >
+              {/* Main column */}
+              <div className="space-y-5 sm:space-y-6">
+                {/* Child (read-only) */}
+                <Card>
+                  <CardHeader
+                    icon={<FileWarning className="h-4 w-4" />}
+                    title="Student"
+                    desc="Absence is reported for this student."
+                  />
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-navy text-white grid place-items-center text-sm font-semibold shrink-0">
+                      {parentChild.name
+                        .split(" ")
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((p) => p[0]?.toUpperCase())
+                        .join("")}
+                    </div>
+                    <div className="leading-tight min-w-0">
+                      <div className="text-sm font-medium truncate">
+                        {parentChild.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {parentChild.grade} · {parentChild.class} ·{" "}
+                        {parentChild.room}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Card>
+                </Card>
 
-              {/* Reason */}
-              <Card>
-                <CardHeader
-                  icon={<Info className="h-4 w-4" />}
-                  title="Reason"
-                  desc="Pick the option that best describes the absence."
-                />
+                {/* Reason */}
+                <Card>
+                  <CardHeader
+                    icon={<Info className="h-4 w-4" />}
+                    title="Reason"
+                    desc="Pick the option that best describes the absence."
+                  />
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {absenceReasons.map((r) => {
-                    const active = reason === r.id;
-                    return (
-                      <button
-                        key={r.id}
-                        type="button"
-                        onClick={() => setReason(r.id)}
-                        className={`rounded-lg border p-3 sm:p-4 text-left transition ${
-                          active
-                            ? "border-blue bg-blue-light/60 ring-2 ring-blue/30"
-                            : "border-border hover:border-blue/40 hover:bg-muted/40"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-sm font-medium">{r.label}</div>
-                            <div className="text-xs text-muted-foreground mt-0.5">
-                              {r.desc}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {absenceReasons.map((r) => {
+                      const active = reason === r.id;
+                      return (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => {
+                            setReason(r.id);
+                            if (errors.reason) {
+                              setErrors((e) => ({ ...e, reason: "" }));
+                            }
+                          }}
+                          className={`rounded-lg border p-3 sm:p-4 text-left transition ${
+                            active
+                              ? "border-blue bg-blue-light/60 ring-2 ring-blue/30"
+                              : "border-border hover:border-blue/40 hover:bg-muted/40"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-medium">
+                                {r.label}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                {r.desc}
+                              </div>
                             </div>
+                            <span
+                              className={`mt-0.5 h-4 w-4 rounded-full border-2 transition shrink-0 ${
+                                active
+                                  ? "border-blue bg-blue"
+                                  : "border-muted-foreground/40"
+                              }`}
+                            />
                           </div>
-                          <span
-                            className={`mt-0.5 h-4 w-4 rounded-full border-2 transition shrink-0 ${
-                              active
-                                ? "border-blue bg-blue"
-                                : "border-muted-foreground/40"
-                            }`}
-                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {errors.reason && (
+                    <p className="mt-2 text-xs text-danger">{errors.reason}</p>
+                  )}
+                </Card>
+
+                {/* Dates */}
+                <Card>
+                  <CardHeader
+                    icon={<CalendarDays className="h-4 w-4" />}
+                    title="Dates"
+                    desc="Single-day or multi-day absence."
+                  />
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="From" error={errors.fromDate}>
+                      <input
+                        type="date"
+                        value={fromDate}
+                        onChange={(e) => setFromDate(e.target.value)}
+                        className={inputCls}
+                      />
+                    </Field>
+                    <Field label="To" error={errors.toDate}>
+                      <input
+                        type="date"
+                        value={toDate}
+                        min={fromDate || undefined}
+                        onChange={(e) => setToDate(e.target.value)}
+                        className={inputCls}
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="mt-3 text-xs text-muted-foreground">
+                    {dayCount === 0
+                      ? "Pick a valid date range."
+                      : dayCount === 1
+                      ? `1 school day will be marked as absent.`
+                      : `${dayCount} school days will be marked as absent.`}
+                  </div>
+                </Card>
+
+                {/* Notes */}
+                <Card>
+                  <CardHeader
+                    icon={<Paperclip className="h-4 w-4" />}
+                    title="Additional details (optional)"
+                    desc="Anything the office or teacher should know."
+                  />
+
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={4}
+                    placeholder="e.g. Fever since last night, started medication this morning."
+                    className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20 resize-none"
+                  />
+                  {errors.notes && (
+                    <p className="mt-1.5 text-xs text-danger">
+                      {errors.notes}
+                    </p>
+                  )}
+
+                  {/* Upload */}
+                  <div className="mt-4">
+                    <div className="text-xs font-medium text-muted-foreground mb-1.5">
+                      Attachment (optional)
+                    </div>
+                    {file ? (
+                      <div className="flex items-center gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5 text-xs">
+                        <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="flex-1 truncate font-medium">
+                          {file}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleRemoveAttachment}
+                          className="p-1.5 rounded-md text-muted-foreground hover:bg-danger-light hover:text-danger transition-colors shrink-0"
+                          aria-label="Remove attachment"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleAttach}
+                        className="w-full rounded-md border border-dashed border-border bg-muted/20 px-4 py-6 text-center hover:border-blue/50 hover:bg-blue-light/30 transition group"
+                      >
+                        <Upload className="h-5 w-5 mx-auto text-muted-foreground group-hover:text-blue transition-colors" />
+                        <div className="mt-2 text-xs text-muted-foreground group-hover:text-blue transition-colors">
+                          Click to attach a doctor&apos;s note or photo
                         </div>
                       </button>
-                    );
-                  })}
-                </div>
-
-                {errors.reason && (
-                  <p className="mt-2 text-xs text-danger">{errors.reason}</p>
-                )}
-              </Card>
-
-              {/* Dates */}
-              <Card>
-                <CardHeader
-                  icon={<CalendarDays className="h-4 w-4" />}
-                  title="Dates"
-                  desc="Single-day or multi-day absence."
-                />
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="From" error={errors.fromDate}>
-                    <input
-                      type="date"
-                      value={fromDate}
-                      onChange={(e) => setFromDate(e.target.value)}
-                      className={inputCls}
-                    />
-                  </Field>
-                  <Field label="To" error={errors.toDate}>
-                    <input
-                      type="date"
-                      value={toDate}
-                      min={fromDate || undefined}
-                      onChange={(e) => setToDate(e.target.value)}
-                      className={inputCls}
-                    />
-                  </Field>
-                </div>
-
-                <div className="mt-3 text-xs text-muted-foreground">
-                  {dayCount === 0
-                    ? "Pick a valid date range."
-                    : dayCount === 1
-                    ? `1 school day will be marked as absent.`
-                    : `${dayCount} school days will be marked as absent.`}
-                </div>
-              </Card>
-
-              {/* Notes */}
-              <Card>
-                <CardHeader
-                  icon={<Paperclip className="h-4 w-4" />}
-                  title="Additional details (optional)"
-                  desc="Anything the office or teacher should know."
-                />
-
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={4}
-                  placeholder="e.g. Fever since last night, started medication this morning."
-                  className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20 resize-none"
-                />
-                {errors.notes && (
-                  <p className="mt-1.5 text-xs text-danger">{errors.notes}</p>
-                )}
-
-                {/* Upload */}
-                <div className="mt-4">
-                  <div className="text-xs font-medium text-muted-foreground mb-1.5">
-                    Attachment (optional)
+                    )}
                   </div>
-                  {file ? (
-                    <div className="flex items-center gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5 text-xs">
-                      <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span className="flex-1 truncate font-medium">{file}</span>
-                      <button
-                        type="button"
-                        onClick={() => setFile(null)}
-                        className="p-1.5 rounded-md text-muted-foreground hover:bg-danger-light hover:text-danger transition-colors shrink-0"
-                        aria-label="Remove attachment"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setFile("medical-note.pdf")}
-                      className="w-full rounded-md border border-dashed border-border bg-muted/20 px-4 py-6 text-center hover:border-blue/50 hover:bg-blue-light/30 transition group"
-                    >
-                      <Upload className="h-5 w-5 mx-auto text-muted-foreground group-hover:text-blue transition-colors" />
-                      <div className="mt-2 text-xs text-muted-foreground group-hover:text-blue transition-colors">
-                        Click to attach a doctor&apos;s note or photo
-                      </div>
-                    </button>
-                  )}
-                </div>
-              </Card>
-            </div>
-
-            {/* Side column */}
-            <aside className="space-y-4 lg:sticky lg:top-6 h-fit">
-              <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
-                <h3 className="text-sm font-semibold">Summary</h3>
-                <dl className="mt-4 space-y-3 text-sm">
-                  <Row label="Student" value={parentChild.name} />
-                  <Row
-                    label="Reason"
-                    value={
-                      reason
-                        ? absenceReasons.find((r) => r.id === reason)!.label
-                        : "—"
-                    }
-                  />
-                  <Row
-                    label="Dates"
-                    value={
-                      fromDate && toDate
-                        ? fromDate === toDate
-                          ? fmtShort(fromDate)
-                          : `${fmtShort(fromDate)} → ${fmtShort(toDate)}`
-                        : "—"
-                    }
-                  />
-                  <Row
-                    label="School days"
-                    value={dayCount > 0 ? String(dayCount) : "—"}
-                  />
-                  <Row label="Attachment" value={file ?? "—"} />
-                </dl>
-
-                <button
-                  type="submit"
-                  className="mt-6 w-full h-10 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition inline-flex items-center justify-center gap-2"
-                >
-                  <Send className="h-4 w-4" />
-                  Submit report
-                </button>
-                <p className="mt-3 text-[11px] text-muted-foreground text-center">
-                  The office will be notified immediately.
-                </p>
+                </Card>
               </div>
 
-              <div className="rounded-lg border border-border bg-muted/30 p-4 text-xs text-muted-foreground">
-                <div className="font-medium text-foreground mb-1">
-                  When to report
+              {/* Side column */}
+              <aside className="space-y-4 lg:sticky lg:top-6 h-fit">
+                <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
+                  <h3 className="text-sm font-semibold">Summary</h3>
+                  <dl className="mt-4 space-y-3 text-sm">
+                    <Row label="Student" value={parentChild.name} />
+                    <Row
+                      label="Reason"
+                      value={
+                        reason
+                          ? absenceReasons.find((r) => r.id === reason)!.label
+                          : "—"
+                      }
+                    />
+                    <Row
+                      label="Dates"
+                      value={
+                        fromDate && toDate
+                          ? fromDate === toDate
+                            ? fmtShort(fromDate)
+                            : `${fmtShort(fromDate)} → ${fmtShort(toDate)}`
+                          : "—"
+                      }
+                    />
+                    <Row
+                      label="School days"
+                      value={dayCount > 0 ? String(dayCount) : "—"}
+                    />
+                    <Row label="Attachment" value={file ?? "—"} />
+                  </dl>
+
+                  <button
+                    type="submit"
+                    className="mt-6 w-full h-11 sm:h-10 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition inline-flex items-center justify-center gap-2"
+                  >
+                    <Send className="h-4 w-4" />
+                    Submit report
+                  </button>
+                  <p className="mt-3 text-[11px] text-muted-foreground text-center">
+                    The office will be notified immediately.
+                  </p>
                 </div>
-                <ul className="space-y-1.5">
-                  <li>• Before 09:00 on the day of absence.</li>
-                  <li>• For planned appointments, at least 1 day in advance.</li>
-                  <li>• For multi-day illness, update dates when you know more.</li>
-                </ul>
-              </div>
-            </aside>
-          </form>
-        </>
-      )}
-    </ParentShell>
+
+                <div className="rounded-lg border border-border bg-muted/30 p-4 text-xs text-muted-foreground">
+                  <div className="font-medium text-foreground mb-1">
+                    When to report
+                  </div>
+                  <ul className="space-y-1.5">
+                    <li>• Before 09:00 on the day of absence.</li>
+                    <li>
+                      • For planned appointments, at least 1 day in advance.
+                    </li>
+                    <li>
+                      • For multi-day illness, update dates when you know more.
+                    </li>
+                  </ul>
+                </div>
+              </aside>
+            </form>
+          </>
+        )}
+      </ParentShell>
+
+      {/* ================= TOASTS ================= */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+    </>
   );
 }
 
-/* ---------------- sub-components ---------------- */
+/* =========================================================
+   Sub-components
+   ========================================================= */
 
 const inputCls =
-  "w-full h-9 rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20";
+  "w-full h-11 sm:h-10 rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20";
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
@@ -363,12 +467,14 @@ function CardHeader({
   return (
     <div className="mb-4">
       <div className="flex items-center gap-2">
-        <span className="h-7 w-7 rounded-md bg-blue-light text-blue grid place-items-center">
+        <span className="h-7 w-7 rounded-md bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
           {icon}
         </span>
         <h2 className="text-sm font-semibold">{title}</h2>
       </div>
-      {desc && <p className="text-xs text-muted-foreground mt-1.5">{desc}</p>}
+      {desc && (
+        <p className="text-xs text-muted-foreground mt-1.5">{desc}</p>
+      )}
     </div>
   );
 }
@@ -422,13 +528,13 @@ function SuccessState({
 }) {
   return (
     <div className="rounded-lg border border-border bg-surface p-6 sm:p-8 text-center">
-      <div className="mx-auto h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-success-light text-success grid place-items-center">
+      <div className="mx-auto h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-success-light text-success border border-success/20 grid place-items-center">
         <CheckCircle2 className="h-6 w-6" />
       </div>
       <h2 className="mt-4 text-lg font-semibold">Absence reported</h2>
       <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-        The school has been notified. You&apos;ll receive a confirmation once the
-        office reviews the report.
+        The school has been notified. You&apos;ll receive a confirmation once
+        the office reviews the report.
       </p>
 
       <div className="mt-6 max-w-sm mx-auto rounded-md border border-border bg-background text-left divide-y divide-border">
@@ -447,7 +553,7 @@ function SuccessState({
       <div className="mt-6 sm:mt-8 flex items-center justify-center">
         <button
           onClick={onReset}
-          className="w-full sm:w-auto h-9 px-4 rounded-md border border-border text-sm font-medium hover:bg-muted transition"
+          className="w-full sm:w-auto h-11 sm:h-10 px-4 rounded-md border border-border text-sm font-medium hover:bg-muted transition"
         >
           Report another absence
         </button>
@@ -460,7 +566,9 @@ function SummaryLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between px-4 py-3">
       <span className="text-xs text-muted-foreground shrink-0">{label}</span>
-      <span className="text-sm font-medium truncate ml-3">{value}</span>
+      <span className="text-sm font-medium truncate ml-3 tabular-nums">
+        {value}
+      </span>
     </div>
   );
 }

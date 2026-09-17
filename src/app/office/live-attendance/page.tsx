@@ -11,13 +11,18 @@ import {
   Clock,
   FileEdit,
   GraduationCap,
+  Inbox,
   RefreshCw,
   User,
   Users,
   X,
   XCircle,
 } from "lucide-react";
+
 import { PageContainer } from "@/components/layout/PageContainer";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import {
   liveClasses,
   unexplainedCases,
@@ -33,12 +38,24 @@ function titleCase(s: string) {
 }
 
 export default function LiveAttendancePage() {
+  /* ---------------- Data ---------------- */
   const [rows] = useState<ClassSnapshot[]>(liveClasses);
+
+  /* ---------------- Async state slots (Phase 10) ---------------- */
+  const [loading] = useState(false);
+  const [error] = useState(false);
+
+  /* ---------------- Filters ---------------- */
   const [filter, setFilter] = useState<"all" | SubmissionStatus>("all");
+
+  /* ---------------- Refresh state ---------------- */
   const [refreshedAt, setRefreshedAt] = useState<string>("09:14");
   const [refreshing, setRefreshing] = useState(false);
+
+  /* ---------------- Drawer ---------------- */
   const [openClass, setOpenClass] = useState<ClassSnapshot | null>(null);
 
+  /* ---------------- Derived ---------------- */
   const filtered = useMemo(
     () => (filter === "all" ? rows : rows.filter((r) => r.status === filter)),
     [rows, filter]
@@ -87,126 +104,168 @@ export default function LiveAttendancePage() {
         </button>
       }
     >
-      {/* Header strip */}
-      <div className="rounded-lg border border-border bg-surface px-4 py-4 sm:px-5 sm:py-4 mb-5 sm:mb-6 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-4 sm:gap-3">
-        <div className="flex items-center gap-3 flex-1 min-w-0 w-full">
-          <span className="h-10 w-10 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
-            <Activity className="h-5 w-5" />
-          </span>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium">
-              Morning roll call · 12 Sep 2026
-            </div>
-            <div className="text-xs text-muted-foreground mt-0.5">
-              Last updated at {refreshedAt}
-            </div>
-          </div>
+      {/* ================= LOADING (Phase 10) ================= */}
+      {loading ? (
+        <div className="rounded-lg border border-border bg-surface">
+          <LoadingState
+            title="Loading board…"
+            description="Fetching live attendance for all classes."
+          />
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4 text-xs w-full sm:w-auto mt-1 sm:mt-0 pt-3 sm:pt-0 border-t border-border sm:border-0">
-          <span className="inline-flex items-center gap-1.5 text-success whitespace-nowrap">
-            <span className="h-2 w-2 rounded-full bg-success shrink-0" />
-            {counts.submitted} submitted
-          </span>
-          <span className="inline-flex items-center gap-1.5 text-inactive whitespace-nowrap">
-            <span className="h-2 w-2 rounded-full bg-inactive-border shrink-0" />
-            {counts.pending} pending
-          </span>
-          <span className="inline-flex items-center gap-1.5 text-warning whitespace-nowrap">
-            <span className="h-2 w-2 rounded-full bg-warning shrink-0" />
-            {counts.draft} draft
-          </span>
-          <span className="inline-flex items-center gap-1.5 text-danger whitespace-nowrap">
-            <span className="h-2 w-2 rounded-full bg-danger shrink-0" />
-            {counts.overdue} overdue
-          </span>
-        </div>
-      </div>
-
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-        <StatCard
-          icon={<CheckCircle2 className="h-4 w-4" />}
-          label="Submitted"
-          value={counts.submitted}
-          total={rows.length}
-          tone="success"
-        />
-        <StatCard
-          icon={<Users className="h-4 w-4" />}
-          label="Pending"
-          value={counts.pending}
-          total={rows.length}
-          tone="muted"
-        />
-        <StatCard
-          icon={<FileEdit className="h-4 w-4" />}
-          label="Draft"
-          value={counts.draft}
-          total={rows.length}
-          tone="warning"
-        />
-        <StatCard
-          icon={<AlertTriangle className="h-4 w-4" />}
-          label="Overdue"
-          value={counts.overdue}
-          total={rows.length}
-          tone="danger"
-        />
-      </div>
-
-      {/* Filters */}
-      <div
-        className="flex items-center gap-2 mb-5 sm:mb-6 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 sm:flex-wrap"
-        style={{ scrollbarWidth: "none" }}
-      >
-        <FilterTab active={filter === "all"} onClick={() => setFilter("all")}>
-          All ({rows.length})
-        </FilterTab>
-        <FilterTab
-          active={filter === "Submitted"}
-          onClick={() => setFilter("Submitted")}
-        >
-          Submitted ({counts.submitted})
-        </FilterTab>
-        <FilterTab
-          active={filter === "Pending"}
-          onClick={() => setFilter("Pending")}
-        >
-          Pending ({counts.pending})
-        </FilterTab>
-        <FilterTab
-          active={filter === "Draft"}
-          onClick={() => setFilter("Draft")}
-        >
-          Draft ({counts.draft})
-        </FilterTab>
-        <FilterTab
-          active={filter === "Overdue"}
-          onClick={() => setFilter("Overdue")}
-        >
-          Overdue ({counts.overdue})
-        </FilterTab>
-      </div>
-
-      {/* Class grid */}
-      {filtered.length === 0 ? (
-        <div className="rounded-lg border border-border bg-surface px-6 py-16 text-center text-sm text-muted-foreground">
-          No classes match this filter.
+      ) : error ? (
+        /* ================= ERROR (Phase 10) ================= */
+        <div className="rounded-lg border border-border bg-surface">
+          <ErrorState
+            title="Couldn't load the board"
+            description="The server didn't respond. Check your connection and try again."
+            onRetry={() => window.location.reload()}
+          />
         </div>
       ) : (
-        <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((c) => (
-            <ClassCard
-              key={c.classId}
-              cls={c}
-              onView={() => setOpenClass(c)}
-            />
-          ))}
-        </div>
-      )}
+        <>
+          {/* ================= Header strip ================= */}
+          <div className="rounded-lg border border-border bg-surface px-4 py-4 sm:px-5 sm:py-4 mb-5 sm:mb-6 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-4 sm:gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0 w-full">
+              <span className="h-10 w-10 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
+                <Activity className="h-5 w-5" />
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium">
+                  Morning roll call · 12 Sep 2026
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Last updated at {refreshedAt}
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4 text-xs w-full sm:w-auto mt-1 sm:mt-0 pt-3 sm:pt-0 border-t border-border sm:border-0">
+              <span className="inline-flex items-center gap-1.5 text-success whitespace-nowrap">
+                <span className="h-2 w-2 rounded-full bg-success shrink-0" />
+                {counts.submitted} submitted
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-inactive whitespace-nowrap">
+                <span className="h-2 w-2 rounded-full bg-inactive-border shrink-0" />
+                {counts.pending} pending
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-warning whitespace-nowrap">
+                <span className="h-2 w-2 rounded-full bg-warning shrink-0" />
+                {counts.draft} draft
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-danger whitespace-nowrap">
+                <span className="h-2 w-2 rounded-full bg-danger shrink-0" />
+                {counts.overdue} overdue
+              </span>
+            </div>
+          </div>
 
-      {openClass && (
-        <ClassDrawer cls={openClass} onClose={() => setOpenClass(null)} />
+          {/* ================= KPI cards ================= */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <StatCard
+              icon={<CheckCircle2 className="h-4 w-4" />}
+              label="Submitted"
+              value={counts.submitted}
+              total={rows.length}
+              tone="success"
+            />
+            <StatCard
+              icon={<Users className="h-4 w-4" />}
+              label="Pending"
+              value={counts.pending}
+              total={rows.length}
+              tone="muted"
+            />
+            <StatCard
+              icon={<FileEdit className="h-4 w-4" />}
+              label="Draft"
+              value={counts.draft}
+              total={rows.length}
+              tone="warning"
+            />
+            <StatCard
+              icon={<AlertTriangle className="h-4 w-4" />}
+              label="Overdue"
+              value={counts.overdue}
+              total={rows.length}
+              tone="danger"
+            />
+          </div>
+
+          {/* ================= Filters ================= */}
+          <div
+            className="flex items-center gap-2 mb-5 sm:mb-6 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 sm:flex-wrap"
+            style={{ scrollbarWidth: "none" }}
+          >
+            <FilterTab active={filter === "all"} onClick={() => setFilter("all")}>
+              All ({rows.length})
+            </FilterTab>
+            <FilterTab
+              active={filter === "Submitted"}
+              onClick={() => setFilter("Submitted")}
+            >
+              Submitted ({counts.submitted})
+            </FilterTab>
+            <FilterTab
+              active={filter === "Pending"}
+              onClick={() => setFilter("Pending")}
+            >
+              Pending ({counts.pending})
+            </FilterTab>
+            <FilterTab
+              active={filter === "Draft"}
+              onClick={() => setFilter("Draft")}
+            >
+              Draft ({counts.draft})
+            </FilterTab>
+            <FilterTab
+              active={filter === "Overdue"}
+              onClick={() => setFilter("Overdue")}
+            >
+              Overdue ({counts.overdue})
+            </FilterTab>
+          </div>
+
+          {/* ================= Class grid ================= */}
+          {filtered.length === 0 ? (
+            <div className="rounded-lg border border-border bg-surface">
+              {rows.length === 0 ? (
+                <EmptyState
+                  icon={<Inbox className="h-5 w-5" />}
+                  title="No classes yet"
+                  description="Once classes are added, their live attendance will appear here."
+                />
+              ) : (
+                <EmptyState
+                  icon={<GraduationCap className="h-5 w-5" />}
+                  title="No classes match this filter"
+                  description="Try selecting a different status filter."
+                  action={
+                    <button
+                      onClick={() => setFilter("all")}
+                      className="h-9 px-4 rounded-md border border-border text-sm font-medium hover:bg-muted transition"
+                    >
+                      Show all
+                    </button>
+                  }
+                />
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {filtered.map((c) => (
+                <ClassCard
+                  key={c.classId}
+                  cls={c}
+                  onView={() => setOpenClass(c)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* ================= Drawer ================= */}
+          {openClass && (
+            <ClassDrawer cls={openClass} onClose={() => setOpenClass(null)} />
+          )}
+        </>
       )}
     </PageContainer>
   );
@@ -604,7 +663,10 @@ function ClassDrawer({
               </h3>
               <ul className="rounded-md border border-border divide-y divide-border">
                 {relatedCases.map((c) => (
-                  <li key={c.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 py-3">
+                  <li
+                    key={c.id}
+                    className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 py-3"
+                  >
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium truncate">
                         {c.studentName}
@@ -632,7 +694,7 @@ function ClassDrawer({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-border p-4 pb-6 sm:pb-4 shrink-0">
+        <div className="border-t border-border p-4 shrink-0">
           <button
             onClick={onClose}
             className="w-full h-11 sm:h-10 rounded-md border border-border text-sm font-medium hover:bg-muted inline-flex items-center justify-center gap-2 transition-colors"
@@ -669,7 +731,9 @@ function CountBox({
         {icon}
         {label}
       </div>
-      <div className={`mt-1 text-base sm:text-lg font-semibold ${cls} tabular-nums`}>
+      <div
+        className={`mt-1 text-base sm:text-lg font-semibold ${cls} tabular-nums`}
+      >
         {value}
       </div>
     </div>
@@ -690,7 +754,9 @@ function InfoRow({
   return (
     <div className="flex items-center gap-3 sm:gap-4 px-3 py-2.5 sm:px-4">
       <span className="text-muted-foreground shrink-0">{icon}</span>
-      <dt className="text-xs text-muted-foreground w-16 sm:w-20 shrink-0">{label}</dt>
+      <dt className="text-xs text-muted-foreground w-16 sm:w-20 shrink-0">
+        {label}
+      </dt>
       <dd
         className={`text-sm flex-1 truncate ${
           mono ? "font-mono text-xs" : ""

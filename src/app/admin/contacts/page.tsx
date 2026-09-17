@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useState } from "react";
@@ -12,8 +11,20 @@ import {
   UserCheck,
   Trash2,
   X,
+  Users,
+  UserPlus,
 } from "lucide-react";
+
 import { PageContainer } from "@/components/layout/PageContainer";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import {
+  ToastContainer,
+  type ToastMessage,
+  type ToastTone,
+} from "@/components/ui/Toast";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import {
   contacts as seed,
   type Contact,
@@ -28,20 +39,38 @@ const RELATIONSHIPS: Relationship[] = [
 ];
 
 export default function ContactsPage() {
+  /* ---------------- Data ---------------- */
   const [rows, setRows] = useState<Contact[]>(seed);
+
+  /* ---------------- Async state slots (Phase 10) ---------------- */
+  const [loading] = useState(false);
+  const [error] = useState(false);
+
+  /* ---------------- Filters ---------------- */
   const [query, setQuery] = useState("");
-  const [relFilter, setRelFilter] =
-    useState<"all" | Relationship>("all");
+  const [relFilter, setRelFilter] = useState<"all" | Relationship>("all");
   const [statusFilter, setStatusFilter] = useState<
     "all" | "Active" | "Inactive"
   >("all");
 
+  /* ---------------- Modal state ---------------- */
   const [editing, setEditing] = useState<Contact | null>(null);
   const [creating, setCreating] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Contact | null>(null);
 
+  /* ---------------- Toasts ---------------- */
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const pushToast = (tone: ToastTone, title: string, description?: string) => {
+    // eslint-disable-next-line react-hooks/purity
+    const id = Math.random().toString(36).slice(2);
+    setToasts((t) => [...t, { id, tone, title, description }]);
+  };
+  const dismissToast = (id: string) =>
+    setToasts((t) => t.filter((x) => x.id !== id));
+
+  /* ---------------- Filtered ---------------- */
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-
     return rows.filter((r) => {
       const matchesQuery =
         !q ||
@@ -50,15 +79,9 @@ export default function ContactsPage() {
         r.email.toLowerCase().includes(q) ||
         r.studentName.toLowerCase().includes(q) ||
         r.studentId.toLowerCase().includes(q);
-
-      const matchesRel =
-        relFilter === "all" ||
-        r.relationship === relFilter;
-
+      const matchesRel = relFilter === "all" || r.relationship === relFilter;
       const matchesStatus =
-        statusFilter === "all" ||
-        r.status === statusFilter;
-
+        statusFilter === "all" || r.status === statusFilter;
       return matchesQuery && matchesRel && matchesStatus;
     });
   }, [rows, query, relFilter, statusFilter]);
@@ -73,53 +96,59 @@ export default function ContactsPage() {
     [rows]
   );
 
-  const toggleStatus = (id: string) => {
+  const hasFilters =
+    query.trim().length > 0 ||
+    relFilter !== "all" ||
+    statusFilter !== "all";
+
+  const clearFilters = () => {
+    setQuery("");
+    setRelFilter("all");
+    setStatusFilter("all");
+  };
+
+  /* ---------------- Actions ---------------- */
+  const toggleStatus = (contact: Contact) => {
+    const next = contact.status === "Active" ? "Inactive" : "Active";
     setRows((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              status:
-                r.status === "Active"
-                  ? "Inactive"
-                  : "Active",
-            }
-          : r
-      )
+      prev.map((r) => (r.id === contact.id ? { ...r, status: next } : r))
+    );
+    pushToast(
+      next === "Active" ? "success" : "info",
+      next === "Active" ? "Contact activated" : "Contact deactivated",
+      `${contact.name} is now ${next.toLowerCase()}.`
     );
   };
 
-  const deleteContact = (id: string) => {
-    const contact = rows.find((r) => r.id === id);
-
-    if (!contact) return;
-
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ${contact.name}?`
-    );
-
-    if (!confirmed) return;
-
-    setRows((prev) =>
-      prev.filter((r) => r.id !== id)
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    const removed = pendingDelete;
+    setRows((prev) => prev.filter((r) => r.id !== removed.id));
+    if (editing?.id === removed.id) setEditing(null);
+    setPendingDelete(null);
+    pushToast(
+      "success",
+      "Contact removed",
+      `${removed.name} has been removed from the directory.`
     );
   };
 
-  const handleSave = (contact: Contact) => {
+  const handleSave = (contact: Contact, isEdit: boolean) => {
     setRows((prev) => {
-      const exists = prev.some(
-        (r) => r.id === contact.id
-      );
-
+      const exists = prev.some((r) => r.id === contact.id);
       return exists
-        ? prev.map((r) =>
-            r.id === contact.id ? contact : r
-          )
+        ? prev.map((r) => (r.id === contact.id ? contact : r))
         : [contact, ...prev];
     });
-
     setEditing(null);
     setCreating(false);
+    pushToast(
+      "success",
+      isEdit ? "Contact updated" : "Contact added",
+      isEdit
+        ? `${contact.name}'s details were saved.`
+        : `${contact.name} has been added to the directory.`
+    );
   };
 
   return (
@@ -129,304 +158,399 @@ export default function ContactsPage() {
       actions={
         <button
           onClick={() => setCreating(true)}
-          className="inline-flex items-center justify-center gap-2 h-10 sm:h-9 px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition w-full sm:w-auto"
+          className="inline-flex items-center justify-center gap-2 h-10 sm:h-9 px-3 sm:px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition w-full sm:w-auto"
         >
           <Plus className="h-4 w-4" />
           Add Contact
         </button>
       }
     >
-      {/* ================= KPIs ================= */}
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <StatCard
-          label="Total contacts"
-          value={stats.total}
-        />
-
-        <StatCard
-          label="Active"
-          value={stats.active}
-          tone="success"
-        />
-
-        <StatCard
-          label="Inactive"
-          value={stats.inactive}
-          tone="danger"
-        />
-
-        <StatCard
-          label="Students covered"
-          value={stats.students}
-        />
-      </div>
-
-      {/* ================= Filters ================= */}
-
-      <div className="flex flex-col gap-3 mb-4">
-        {/* Search */}
-
-        <div className="relative w-full sm:max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-
-          <input
-            value={query}
-            onChange={(e) =>
-              setQuery(e.target.value)
-            }
-            placeholder="Search by name, phone, email or student..."
-            className="w-full h-10 sm:h-9 rounded-md border border-input bg-surface pl-9 pr-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
+      {/* ================= LOADING (Phase 10) ================= */}
+      {loading ? (
+        <div className="rounded-lg border border-border bg-surface">
+          <LoadingState
+            title="Loading contacts…"
+            description="Fetching the directory from the server."
           />
         </div>
-
-        {/* Select Filters */}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex gap-2 sm:gap-3">
-          <select
-            value={relFilter}
-            onChange={(e) =>
-              setRelFilter(
-                e.target.value as
-                  | "all"
-                  | Relationship
-              )
-            }
-            className="w-full lg:w-auto h-10 sm:h-9 rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
-          >
-            <option value="all">
-              All relationships
-            </option>
-
-            {RELATIONSHIPS.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={statusFilter}
-            onChange={(e) =>
-              setStatusFilter(
-                e.target.value as typeof statusFilter
-              )
-            }
-            className="w-full lg:w-auto h-10 sm:h-9 rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
-          >
-            <option value="all">
-              All statuses
-            </option>
-
-            <option value="Active">Active</option>
-            <option value="Inactive">
-              Inactive
-            </option>
-          </select>
+      ) : error ? (
+        /* ================= ERROR (Phase 10) ================= */
+        <div className="rounded-lg border border-border bg-surface">
+          <ErrorState
+            title="Couldn't load contacts"
+            description="The server didn't respond. Check your connection and try again."
+            onRetry={() => window.location.reload()}
+          />
         </div>
-      </div>
+      ) : (
+        <>
+          {/* ================= KPIs ================= */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <StatCard label="Total Contacts" value={stats.total} />
+            <StatCard label="Active" value={stats.active} tone="success" />
+            <StatCard
+              label="Inactive"
+              value={stats.inactive}
+              tone="muted"
+            />
+            <StatCard label="Students Covered" value={stats.students} />
+          </div>
 
-      {/* ================= Table ================= */}
+          {/* ================= FILTERS ================= */}
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 mb-4">
+            <div className="relative w-full sm:flex-1 sm:min-w-[220px] sm:max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by name, phone, email or student…"
+                className="w-full h-10 sm:h-9 rounded-md border border-input bg-surface pl-9 pr-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
+              />
+            </div>
 
-      <div className="w-full overflow-x-auto rounded-lg border border-border bg-surface">
-        <table className="w-full min-w-[900px] text-sm">
-          <thead>
-            <tr className="bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
-              <th className="px-4 py-3 font-medium">
-                ID
-              </th>
+            <select
+              value={relFilter}
+              onChange={(e) =>
+                setRelFilter(e.target.value as "all" | Relationship)
+              }
+              className="w-full sm:w-auto h-10 sm:h-9 rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
+            >
+              <option value="all">All relationships</option>
+              {RELATIONSHIPS.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
 
-              <th className="px-4 py-3 font-medium">
-                Contact
-              </th>
+            <select
+              value={statusFilter}
+              onChange={(e) =>
+                setStatusFilter(e.target.value as typeof statusFilter)
+              }
+              className="w-full sm:w-auto h-10 sm:h-9 rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
+            >
+              <option value="all">All statuses</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
 
-              <th className="px-4 py-3 font-medium">
-                Relationship
-              </th>
+          {/* ================= EMPTY ================= */}
+          {filtered.length === 0 && (
+            <div className="rounded-lg border border-border bg-surface">
+              {rows.length === 0 ? (
+                <EmptyState
+                  icon={<UserPlus className="h-5 w-5" />}
+                  title="No contacts yet"
+                  description="Add your first parent or guardian to get started."
+                  action={
+                    <button
+                      onClick={() => setCreating(true)}
+                      className="h-9 px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition inline-flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Contact
+                    </button>
+                  }
+                />
+              ) : (
+                <EmptyState
+                  icon={<Users className="h-5 w-5" />}
+                  title="No contacts match your filters"
+                  description="Try adjusting your search or clearing the filters."
+                  action={
+                    hasFilters ? (
+                      <button
+                        onClick={clearFilters}
+                        className="h-9 px-4 rounded-md border border-border text-sm font-medium hover:bg-muted transition"
+                      >
+                        Clear filters
+                      </button>
+                    ) : undefined
+                  }
+                />
+              )}
+            </div>
+          )}
 
-              <th className="px-4 py-3 font-medium">
-                Student
-              </th>
-
-              <th className="px-4 py-3 font-medium">
-                Reach
-              </th>
-
-              <th className="px-4 py-3 font-medium">
-                Status
-              </th>
-
-              <th className="px-4 py-3 font-medium text-right">
-                Actions
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={7}
-                  className="px-4 py-12 text-center text-sm text-muted-foreground"
-                >
-                  No contacts match your filters.
-                </td>
-              </tr>
-            ) : (
-              filtered.map((r) => (
-                <tr
+          {/* ================= MOBILE: cards ================= */}
+          {filtered.length > 0 && (
+            <div className="md:hidden space-y-3">
+              {filtered.map((r) => (
+                <article
                   key={r.id}
-                  className="border-t border-border hover:bg-muted/30 transition-colors"
+                  className="rounded-lg border border-border bg-surface overflow-hidden"
                 >
-                  {/* ID */}
-
-                  <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">
-                    {r.id}
-                  </td>
-
-                  {/* Contact */}
-
-                  <td className="px-4 py-3 whitespace-nowrap font-medium">
-                    {r.name}
-                  </td>
-
-                  {/* Relationship */}
-
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <RelationshipBadge
-                      rel={r.relationship}
-                    />
-                  </td>
-
-                  {/* Student */}
-
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="leading-tight">
-                      <div>{r.studentName}</div>
-
-                      <div className="text-xs text-muted-foreground font-mono">
-                        {r.studentId}
+                  {/* Header */}
+                  <div className="flex items-start gap-3 p-4">
+                    <div className="h-11 w-11 rounded-full bg-navy text-white grid place-items-center text-sm font-semibold shrink-0">
+                      {initials(r.name)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold truncate">
+                            {r.name}
+                          </div>
+                          <div className="text-[11px] font-mono text-muted-foreground mt-0.5">
+                            {r.id}
+                          </div>
+                        </div>
+                        <StatusBadge status={r.status} />
+                      </div>
+                      <div className="mt-2">
+                        <RelationshipBadge rel={r.relationship} />
                       </div>
                     </div>
-                  </td>
+                  </div>
 
-                  {/* Reach */}
-
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="space-y-0.5 text-xs">
-                      <div className="flex items-center gap-1.5 text-foreground tabular-nums">
-                        <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
-                        {r.phone}
-                      </div>
-
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Mail className="h-3 w-3 shrink-0" />
-
-                        <span className="max-w-[220px] truncate">
-                          {r.email}
+                  {/* Student + reach */}
+                  <div className="px-4 pb-4 space-y-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="truncate">
+                        {r.studentName}{" "}
+                        <span className="text-muted-foreground font-mono">
+                          · {r.studentId}
                         </span>
-                      </div>
+                      </span>
                     </div>
-                  </td>
-
-                  {/* Status */}
-
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <StatusBadge
-                      status={r.status}
-                    />
-                  </td>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="truncate tabular-nums">{r.phone}</span>
+                    </div>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="truncate text-muted-foreground">
+                        {r.email}
+                      </span>
+                    </div>
+                  </div>
 
                   {/* Actions */}
-
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center justify-end gap-1">
-                      {/* Edit */}
-
-                      <button
-                        onClick={() =>
-                          setEditing(r)
-                        }
-                        className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition"
-                        title="Edit contact"
-                        aria-label={`Edit ${r.name}`}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-
-                      {/* Activate / Deactivate */}
-
-                      <button
-                        onClick={() =>
-                          toggleStatus(r.id)
-                        }
-                        className={`p-2 rounded-md hover:bg-muted transition ${
-                          r.status === "Active"
-                            ? "text-danger"
-                            : "text-success"
-                        }`}
-                        title={
-                          r.status === "Active"
-                            ? "Deactivate contact"
-                            : "Activate contact"
-                        }
-                        aria-label={
-                          r.status === "Active"
-                            ? `Deactivate ${r.name}`
-                            : `Activate ${r.name}`
-                        }
-                      >
-                        {r.status === "Active" ? (
+                  <div className="grid grid-cols-3 border-t border-border">
+                    <button
+                      onClick={() => setEditing(r)}
+                      className="h-11 flex items-center justify-center gap-1.5 text-xs font-medium hover:bg-muted transition border-r border-border"
+                      aria-label={`Edit ${r.name}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => toggleStatus(r)}
+                      className={`h-11 flex items-center justify-center gap-1.5 text-xs font-medium hover:bg-muted transition border-r border-border ${
+                        r.status === "Active" ? "text-danger" : "text-success"
+                      }`}
+                      aria-label={
+                        r.status === "Active"
+                          ? `Deactivate ${r.name}`
+                          : `Activate ${r.name}`
+                      }
+                    >
+                      {r.status === "Active" ? (
+                        <>
                           <UserX className="h-4 w-4" />
-                        ) : (
+                          Deactivate
+                        </>
+                      ) : (
+                        <>
                           <UserCheck className="h-4 w-4" />
-                        )}
-                      </button>
+                          Activate
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setPendingDelete(r)}
+                      className="h-11 flex items-center justify-center gap-1.5 text-xs font-medium text-danger hover:bg-danger-light transition"
+                      aria-label={`Delete ${r.name}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
 
-                      {/* Delete */}
+          {/* ================= DESKTOP: table ================= */}
+          {filtered.length > 0 && (
+            <div className="hidden md:block overflow-x-auto rounded-lg border border-border bg-surface">
+              <table className="w-full min-w-[980px] text-sm">
+                <thead>
+                  <tr className="bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
+                    <th className="px-4 py-3 font-medium">ID</th>
+                    <th className="px-4 py-3 font-medium">Contact</th>
+                    <th className="px-4 py-3 font-medium">Relationship</th>
+                    <th className="px-4 py-3 font-medium">Student</th>
+                    <th className="px-4 py-3 font-medium">Reach</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium text-right">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
 
-                      <button
-                        onClick={() =>
-                          deleteContact(r.id)
-                        }
-                        className="p-2 rounded-md hover:bg-danger/10 text-danger transition"
-                        title="Delete contact"
-                        aria-label={`Delete ${r.name}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                <tbody>
+                  {filtered.map((r) => (
+                    <tr
+                      key={r.id}
+                      className="border-t border-border hover:bg-muted/30 transition-colors"
+                    >
+                      <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">
+                        {r.id}
+                      </td>
 
-      <div className="mt-3 text-xs text-muted-foreground">
-        Showing {filtered.length} of {rows.length} contacts
-      </div>
+                      <td className="px-4 py-3 whitespace-nowrap font-medium">
+                        {r.name}
+                      </td>
 
-      {/* ================= Modal ================= */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <RelationshipBadge rel={r.relationship} />
+                      </td>
 
-      {(creating || editing) && (
-        <ContactModal
-          contact={editing ?? undefined}
-          onClose={() => {
-            setCreating(false);
-            setEditing(null);
-          }}
-          onSave={handleSave}
-        />
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="leading-tight">
+                          <div>{r.studentName}</div>
+                          <div className="text-xs text-muted-foreground font-mono">
+                            {r.studentId}
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="space-y-0.5 text-xs">
+                          <div className="flex items-center gap-1.5 text-foreground tabular-nums">
+                            <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
+                            {r.phone}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Mail className="h-3 w-3 shrink-0" />
+                            <span className="max-w-[220px] truncate">
+                              {r.email}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <StatusBadge status={r.status} />
+                      </td>
+
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => setEditing(r)}
+                            className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition"
+                            title="Edit contact"
+                            aria-label={`Edit ${r.name}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+
+                          <button
+                            onClick={() => toggleStatus(r)}
+                            className={`p-2 rounded-md hover:bg-muted transition ${
+                              r.status === "Active"
+                                ? "text-danger"
+                                : "text-success"
+                            }`}
+                            title={
+                              r.status === "Active"
+                                ? "Deactivate contact"
+                                : "Activate contact"
+                            }
+                            aria-label={
+                              r.status === "Active"
+                                ? `Deactivate ${r.name}`
+                                : `Activate ${r.name}`
+                            }
+                          >
+                            {r.status === "Active" ? (
+                              <UserX className="h-4 w-4" />
+                            ) : (
+                              <UserCheck className="h-4 w-4" />
+                            )}
+                          </button>
+
+                          <button
+                            onClick={() => setPendingDelete(r)}
+                            className="p-2 rounded-md hover:bg-danger-light text-danger transition"
+                            title="Delete contact"
+                            aria-label={`Delete ${r.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {filtered.length > 0 && (
+            <div className="mt-3 text-xs text-muted-foreground">
+              Showing {filtered.length} of {rows.length} contacts
+            </div>
+          )}
+
+          {/* ================= MODAL ================= */}
+          {(creating || editing) && (
+            <ContactModal
+              contact={editing ?? undefined}
+              onClose={() => {
+                setCreating(false);
+                setEditing(null);
+              }}
+              onSave={(c) => handleSave(c, Boolean(editing))}
+            />
+          )}
+
+          {/* ================= CONFIRM DELETE ================= */}
+          <ConfirmDialog
+            open={pendingDelete !== null}
+            title="Delete contact?"
+            message={
+              <>
+                <span className="font-medium text-foreground">
+                  {pendingDelete?.name}
+                </span>{" "}
+                will be permanently removed from the directory. This action
+                cannot be undone.
+              </>
+            }
+            confirmLabel="Delete contact"
+            cancelLabel="Keep"
+            tone="danger"
+            icon={<Trash2 className="h-5 w-5" />}
+            onConfirm={confirmDelete}
+            onCancel={() => setPendingDelete(null)}
+          />
+
+          {/* ================= TOASTS ================= */}
+          <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+        </>
       )}
     </PageContainer>
   );
 }
 
 /* =========================================================
-   Stat Card
+   Helpers
    ========================================================= */
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
+}
 
 function StatCard({
   label,
@@ -435,23 +559,22 @@ function StatCard({
 }: {
   label: string;
   value: number;
-  tone?: "default" | "success" | "danger";
+  tone?: "default" | "success" | "danger" | "muted";
 }) {
   const toneClass =
     tone === "success"
       ? "text-success"
       : tone === "danger"
-        ? "text-danger"
-        : "text-foreground";
+      ? "text-danger"
+      : tone === "muted"
+      ? "text-inactive"
+      : "text-foreground";
 
   return (
     <div className="rounded-lg border border-border bg-surface p-3 sm:p-4 min-w-0">
-      <div className="text-xs text-muted-foreground truncate">
-        {label}
-      </div>
-
+      <div className="text-xs text-muted-foreground truncate">{label}</div>
       <div
-        className={`mt-1 text-xl sm:text-2xl font-semibold tabular-nums ${toneClass}`}
+        className={`mt-1 text-2xl sm:text-3xl font-semibold tabular-nums ${toneClass}`}
       >
         {value}
       </div>
@@ -459,15 +582,7 @@ function StatCard({
   );
 }
 
-/* =========================================================
-   Status Badge
-   ========================================================= */
-
-function StatusBadge({
-  status,
-}: {
-  status: "Active" | "Inactive";
-}) {
+function StatusBadge({ status }: { status: "Active" | "Inactive" }) {
   const cls =
     status === "Active"
       ? "bg-success-light text-success border border-success/20"
@@ -482,23 +597,15 @@ function StatusBadge({
   );
 }
 
-/* =========================================================
-   Relationship Badge
-   ========================================================= */
-
-function RelationshipBadge({
-  rel,
-}: {
-  rel: Relationship;
-}) {
+function RelationshipBadge({ rel }: { rel: Relationship }) {
   const cls =
     rel === "Father"
       ? "bg-blue-light text-blue border border-blue/20"
       : rel === "Mother"
-        ? "bg-success-light text-success border border-success/20"
-        : rel === "Emergency"
-          ? "bg-danger-light text-danger border border-danger/20"
-          : "bg-inactive-bg text-inactive border border-inactive-border";
+      ? "bg-success-light text-success border border-success/20"
+      : rel === "Emergency"
+      ? "bg-danger-light text-danger border border-danger/20"
+      : "bg-inactive-bg text-inactive border border-inactive-border";
 
   return (
     <span
@@ -510,7 +617,7 @@ function RelationshipBadge({
 }
 
 /* =========================================================
-   Contact Modal
+   Contact modal
    ========================================================= */
 
 function ContactModal({
@@ -526,10 +633,8 @@ function ContactModal({
 
   const [form, setForm] = useState<Contact>(
     contact ?? {
-      id: `CT${String(
-        // eslint-disable-next-line react-hooks/purity
-        Math.floor(Math.random() * 900) + 100
-      )}`,
+      // eslint-disable-next-line react-hooks/purity
+      id: `CT${String(Math.floor(Math.random() * 900) + 100)}`,
       name: "",
       phone: "",
       email: "",
@@ -540,41 +645,27 @@ function ContactModal({
     }
   );
 
-  const set = <K extends keyof Contact>(
-    key: K,
-    value: Contact[K]
-  ) =>
-    setForm((f) => ({
-      ...f,
-      [key]: value,
-    }));
+  const set = <K extends keyof Contact>(key: K, value: Contact[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
 
   const canSave =
-    form.name.trim() &&
-    form.phone.trim() &&
-    form.studentId.trim();
+    form.name.trim() && form.phone.trim() && form.studentId.trim();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      {/* Overlay */}
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      <div
-        className="fixed inset-0 bg-black/40"
-        onClick={onClose}
-      />
+      <div className="relative w-full sm:max-w-lg max-h-[92vh] sm:max-h-[90vh] rounded-t-2xl sm:rounded-lg bg-surface border border-border shadow-xl flex flex-col overflow-hidden">
+        {/* Grabber (mobile) */}
+        <div className="sm:hidden flex justify-center pt-2">
+          <span className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+        </div>
 
-      {/* Modal */}
-
-      <div className="relative w-full max-w-lg max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)] rounded-lg bg-surface border border-border shadow-xl flex flex-col my-auto">
         {/* Header */}
-
-        <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-5 h-14 border-b border-border shrink-0 bg-surface">
+        <div className="flex items-center justify-between px-4 sm:px-5 h-14 border-b border-border shrink-0">
           <h2 className="text-sm font-semibold">
-            {isEdit
-              ? "Edit Contact"
-              : "Add Contact"}
+            {isEdit ? "Edit Contact" : "Add Contact"}
           </h2>
-
           <button
             onClick={onClose}
             className="p-1.5 rounded-md hover:bg-muted transition"
@@ -585,14 +676,11 @@ function ContactModal({
         </div>
 
         {/* Form */}
-
         <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto">
           <Field label="Contact ID">
             <input
               value={form.id}
-              onChange={(e) =>
-                set("id", e.target.value)
-              }
+              onChange={(e) => set("id", e.target.value)}
               disabled={isEdit}
               className={inputCls}
             />
@@ -601,9 +689,7 @@ function ContactModal({
           <Field label="Full name">
             <input
               value={form.name}
-              onChange={(e) =>
-                set("name", e.target.value)
-              }
+              onChange={(e) => set("name", e.target.value)}
               placeholder="e.g. Imran Khan"
               className={inputCls}
             />
@@ -613,10 +699,7 @@ function ContactModal({
             <select
               value={form.relationship}
               onChange={(e) =>
-                set(
-                  "relationship",
-                  e.target.value as Relationship
-                )
+                set("relationship", e.target.value as Relationship)
               }
               className={inputCls}
             >
@@ -630,22 +713,12 @@ function ContactModal({
             <select
               value={form.status}
               onChange={(e) =>
-                set(
-                  "status",
-                  e.target.value as
-                    | "Active"
-                    | "Inactive"
-                )
+                set("status", e.target.value as "Active" | "Inactive")
               }
               className={inputCls}
             >
-              <option value="Active">
-                Active
-              </option>
-
-              <option value="Inactive">
-                Inactive
-              </option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
             </select>
           </Field>
 
@@ -653,9 +726,7 @@ function ContactModal({
             <input
               type="tel"
               value={form.phone}
-              onChange={(e) =>
-                set("phone", e.target.value)
-              }
+              onChange={(e) => set("phone", e.target.value)}
               placeholder="+92 300 0000000"
               className={inputCls}
             />
@@ -665,9 +736,7 @@ function ContactModal({
             <input
               type="email"
               value={form.email}
-              onChange={(e) =>
-                set("email", e.target.value)
-              }
+              onChange={(e) => set("email", e.target.value)}
               placeholder="name@example.com"
               className={inputCls}
             />
@@ -676,9 +745,7 @@ function ContactModal({
           <Field label="Student ID">
             <input
               value={form.studentId}
-              onChange={(e) =>
-                set("studentId", e.target.value)
-              }
+              onChange={(e) => set("studentId", e.target.value)}
               placeholder="e.g. ST001"
               className={inputCls}
             />
@@ -687,9 +754,7 @@ function ContactModal({
           <Field label="Student name">
             <input
               value={form.studentName}
-              onChange={(e) =>
-                set("studentName", e.target.value)
-              }
+              onChange={(e) => set("studentName", e.target.value)}
               placeholder="e.g. Ayesha Khan"
               className={inputCls}
             />
@@ -697,23 +762,19 @@ function ContactModal({
         </div>
 
         {/* Footer */}
-
-        <div className="sticky bottom-0 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 px-4 sm:px-5 py-3 sm:h-16 border-t border-border shrink-0 bg-surface">
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 px-4 sm:px-5 py-3 sm:py-0 sm:h-16 border-t border-border shrink-0">
           <button
             onClick={onClose}
-            className="h-10 sm:h-9 px-4 rounded-md border border-border text-sm hover:bg-muted transition"
+            className="w-full sm:w-auto h-11 sm:h-9 px-4 rounded-md border border-border text-sm hover:bg-muted transition"
           >
             Cancel
           </button>
-
           <button
             disabled={!canSave}
             onClick={() => onSave(form)}
-            className="h-10 sm:h-9 px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto h-11 sm:h-9 px-4 rounded-md bg-blue text-white text-sm font-medium hover:bg-navy transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isEdit
-              ? "Save changes"
-              : "Add contact"}
+            {isEdit ? "Save changes" : "Add contact"}
           </button>
         </div>
       </div>
@@ -722,15 +783,11 @@ function ContactModal({
 }
 
 /* =========================================================
-   Input
+   Form primitives
    ========================================================= */
 
 const inputCls =
-  "w-full h-10 sm:h-9 rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20 disabled:bg-muted disabled:text-muted-foreground";
-
-/* =========================================================
-   Field
-   ========================================================= */
+  "w-full h-11 sm:h-9 rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20 disabled:bg-muted disabled:text-muted-foreground";
 
 function Field({
   label,
@@ -744,10 +801,7 @@ function Field({
       <span className="block text-xs font-medium text-muted-foreground mb-1.5">
         {label}
       </span>
-
       {children}
     </label>
   );
 }
-
-

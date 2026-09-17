@@ -13,8 +13,19 @@ import {
   FileEdit,
   Trash2,
   X,
+  Inbox,
 } from "lucide-react";
+
 import { PageContainer } from "@/components/layout/PageContainer";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import {
+  ToastContainer,
+  type ToastMessage,
+  type ToastTone,
+} from "@/components/ui/Toast";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import {
   correctionRequests as seed,
   type CorrectionRequest,
@@ -24,11 +35,33 @@ type StatusFilter = "all" | CorrectionRequest["status"];
 type AttendanceStatus = CorrectionRequest["currentStatus"];
 
 export default function CorrectionsPage() {
+  /* ---------------- Data ---------------- */
   const [requests, setRequests] = useState<CorrectionRequest[]>(seed);
+
+  /* ---------------- Async state slots (Phase 10) ---------------- */
+  const [loading] = useState(false);
+  const [error] = useState(false);
+
+  /* ---------------- Filters ---------------- */
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
-  const [active, setActive] = useState<CorrectionRequest | null>(null);
 
+  /* ---------------- Modal state ---------------- */
+  const [active, setActive] = useState<CorrectionRequest | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<CorrectionRequest | null>(
+    null
+  );
+
+  /* ---------------- Toasts ---------------- */
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const pushToast = (tone: ToastTone, title: string, description?: string) => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts((t) => [...t, { id, tone, title, description }]);
+  };
+  const dismissToast = (id: string) =>
+    setToasts((t) => t.filter((x) => x.id !== id));
+
+  /* ---------------- Counts ---------------- */
   const counts = useMemo(() => {
     const c = { all: requests.length, pending: 0, approved: 0, rejected: 0 };
     for (const r of requests) {
@@ -39,6 +72,7 @@ export default function CorrectionsPage() {
     return c;
   }, [requests]);
 
+  /* ---------------- Filtered ---------------- */
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return requests.filter((r) => {
@@ -53,6 +87,14 @@ export default function CorrectionsPage() {
     });
   }, [requests, filter, query]);
 
+  const hasFilters = query.trim().length > 0 || filter !== "all";
+
+  const clearFilters = () => {
+    setQuery("");
+    setFilter("all");
+  };
+
+  /* ---------------- Actions ---------------- */
   const applyDecision = (
     id: string,
     status: "Approved" | "Rejected",
@@ -74,207 +116,353 @@ export default function CorrectionsPage() {
       )
     );
     setActive(null);
-    console.log("CORRECTION DECISION (mock):", { id, status, reviewerNote });
+
+    const target = requests.find((r) => r.id === id);
+    pushToast(
+      status === "Approved" ? "success" : "info",
+      status === "Approved" ? "Correction approved" : "Correction rejected",
+      target
+        ? `${target.studentName} · ${target.currentStatus} → ${target.requestedStatus}`
+        : undefined
+    );
   };
 
-  const handleDelete = (id: string) => {
-    setRequests((prev) => prev.filter((r) => r.id !== id));
-    if (active?.id === id) setActive(null);
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    const removed = pendingDelete;
+    setRequests((prev) => prev.filter((r) => r.id !== removed.id));
+    if (active?.id === removed.id) setActive(null);
+    setPendingDelete(null);
+    pushToast(
+      "success",
+      "Request removed",
+      `${removed.studentName}'s correction request was deleted.`
+    );
   };
-
-  // Dynamically group KPIs to satisfy the mobile grid requirements
-  const kpiData = [
-    {
-      id: "pending",
-      icon: <Clock className="h-4 w-4" />,
-      label: "Pending review",
-      value: counts.pending,
-      tone: "warning" as const,
-    },
-    {
-      id: "approved",
-      icon: <CheckCircle2 className="h-4 w-4" />,
-      label: "Approved",
-      value: counts.approved,
-      tone: "success" as const,
-    },
-    {
-      id: "rejected",
-      icon: <XCircle className="h-4 w-4" />,
-      label: "Rejected",
-      value: counts.rejected,
-      tone: "danger" as const,
-    },
-  ];
-
-  // Mobile layout logic: 2 columns if exactly 4, 1 column if 3.
-  const kpiGridClass =
-    kpiData.length === 4
-      ? "grid-cols-2 lg:grid-cols-4"
-      : kpiData.length === 3
-      ? "grid-cols-1 md:grid-cols-3"
-      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
 
   return (
     <PageContainer
       title="Attendance Corrections"
       description="Correct attendance records with a required reason."
     >
-      {/* KPIs */}
-      <div className={`grid ${kpiGridClass} gap-3 sm:gap-4 mb-6`}>
-        {kpiData.map((kpi) => (
-          <StatCard key={kpi.id} {...kpi} />
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-4">
-        <div className="relative flex-1 min-w-[220px] sm:max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by student, ID or requested by…"
-            className="w-full h-9 rounded-md border border-input bg-surface pl-9 pr-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
+      {/* ================= LOADING (Phase 10) ================= */}
+      {loading ? (
+        <div className="rounded-lg border border-border bg-surface">
+          <LoadingState
+            title="Loading corrections…"
+            description="Fetching correction requests from the server."
           />
         </div>
-
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
-          <FilterTab
-            active={filter === "all"}
-            onClick={() => setFilter("all")}
-            count={counts.all}
-          >
-            All
-          </FilterTab>
-          <FilterTab
-            active={filter === "Pending"}
-            onClick={() => setFilter("Pending")}
-            count={counts.pending}
-          >
-            Pending
-          </FilterTab>
-          <FilterTab
-            active={filter === "Approved"}
-            onClick={() => setFilter("Approved")}
-            count={counts.approved}
-          >
-            Approved
-          </FilterTab>
-          <FilterTab
-            active={filter === "Rejected"}
-            onClick={() => setFilter("Rejected")}
-            count={counts.rejected}
-          >
-            Rejected
-          </FilterTab>
+      ) : error ? (
+        /* ================= ERROR (Phase 10) ================= */
+        <div className="rounded-lg border border-border bg-surface">
+          <ErrorState
+            title="Couldn't load correction requests"
+            description="The server didn't respond. Check your connection and try again."
+            onRetry={() => window.location.reload()}
+          />
         </div>
-      </div>
+      ) : (
+        <>
+          {/* ================= KPIs ================= */}
+          <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <StatCard
+              icon={<Clock className="h-4 w-4" />}
+              label="Pending"
+              value={counts.pending}
+              tone="warning"
+            />
+            <StatCard
+              icon={<CheckCircle2 className="h-4 w-4" />}
+              label="Approved"
+              value={counts.approved}
+              tone="success"
+            />
+            <StatCard
+              icon={<XCircle className="h-4 w-4" />}
+              label="Rejected"
+              value={counts.rejected}
+              tone="danger"
+            />
+          </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto overflow-y-hidden rounded-lg border border-border bg-surface">
-        <table className="w-full text-sm min-w-[900px]">
-          <thead>
-            <tr className="bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
-              <th className="px-4 py-3 font-medium">ID</th>
-              <th className="px-4 py-3 font-medium">Student</th>
-              <th className="px-4 py-3 font-medium">Date</th>
-              <th className="px-4 py-3 font-medium">Change</th>
-              <th className="px-4 py-3 font-medium">Requested by</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={7}
-                  className="px-4 py-12 text-center text-sm text-muted-foreground"
-                >
-                  No correction requests match your filters.
-                </td>
-              </tr>
-            ) : (
-              filtered.map((r) => (
-                <tr
+          {/* ================= FILTERS ================= */}
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-4">
+            <div className="relative w-full sm:flex-1 sm:min-w-[220px] sm:max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by student, ID or requested by…"
+                className="w-full h-10 sm:h-9 rounded-md border border-input bg-surface pl-9 pr-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/20"
+              />
+            </div>
+
+            <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+              <FilterTab
+                active={filter === "all"}
+                onClick={() => setFilter("all")}
+                count={counts.all}
+              >
+                All
+              </FilterTab>
+              <FilterTab
+                active={filter === "Pending"}
+                onClick={() => setFilter("Pending")}
+                count={counts.pending}
+              >
+                Pending
+              </FilterTab>
+              <FilterTab
+                active={filter === "Approved"}
+                onClick={() => setFilter("Approved")}
+                count={counts.approved}
+              >
+                Approved
+              </FilterTab>
+              <FilterTab
+                active={filter === "Rejected"}
+                onClick={() => setFilter("Rejected")}
+                count={counts.rejected}
+              >
+                Rejected
+              </FilterTab>
+            </div>
+          </div>
+
+          {/* ================= EMPTY ================= */}
+          {filtered.length === 0 && (
+            <div className="rounded-lg border border-border bg-surface">
+              {requests.length === 0 ? (
+                <EmptyState
+                  icon={<Inbox className="h-5 w-5" />}
+                  title="No correction requests"
+                  description="When teachers request corrections, they'll show up here."
+                />
+              ) : (
+                <EmptyState
+                  icon={<FileEdit className="h-5 w-5" />}
+                  title="No requests match your filters"
+                  description="Try adjusting your search or clearing the filters."
+                  action={
+                    hasFilters ? (
+                      <button
+                        onClick={clearFilters}
+                        className="h-9 px-4 rounded-md border border-border text-sm font-medium hover:bg-muted transition"
+                      >
+                        Clear filters
+                      </button>
+                    ) : undefined
+                  }
+                />
+              )}
+            </div>
+          )}
+
+          {/* ================= MOBILE: cards ================= */}
+          {filtered.length > 0 && (
+            <div className="md:hidden space-y-3">
+              {filtered.map((r) => (
+                <article
                   key={r.id}
-                  className="border-t border-border hover:bg-muted/30 transition-colors"
+                  className="rounded-lg border border-border bg-surface overflow-hidden"
                 >
-                  <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">
-                    {r.id}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="leading-tight">
-                      <div className="font-medium">{r.studentName}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {r.grade} · {r.className}
+                  {/* Header */}
+                  <div className="flex items-start gap-3 p-4">
+                    <span className="h-10 w-10 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
+                      <FileEdit className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold truncate">
+                            {r.studentName}
+                          </div>
+                          <div className="text-[11px] font-mono text-muted-foreground mt-0.5">
+                            {r.studentId} · {r.grade} · {r.className}
+                          </div>
+                        </div>
+                        <StatusBadge status={r.status} />
                       </div>
                     </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {fmtDate(r.date)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <AttendancePill status={r.currentStatus} small />
-                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                      <AttendancePill status={r.requestedStatus} small />
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="leading-tight">
-                      <div>{r.requestedBy}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {r.requestedAt}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <StatusBadge status={r.status} />
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => setActive(r)}
-                        className="h-8 px-3 rounded-md border border-border text-xs hover:bg-muted inline-flex items-center gap-1"
-                      >
-                        {r.status === "Pending" ? "Review" : "View"}
-                        <ArrowRight className="h-3 w-3" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(r.id)}
-                        className="h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-danger hover:bg-danger-light inline-flex items-center justify-center transition-colors shrink-0"
-                        aria-label="Delete request"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                  </div>
 
-      <div className="mt-3 text-xs text-muted-foreground">
-        Showing {filtered.length} of {requests.length} requests
-      </div>
+                  {/* Change row */}
+                  <div className="px-4 pb-3">
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+                      Requested change
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <AttendancePill status={r.currentStatus} />
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <AttendancePill status={r.requestedStatus} />
+                    </div>
+                  </div>
 
-      {active && (
-        <ReviewDrawer
-          request={active}
-          onClose={() => setActive(null)}
-          onApprove={(note) => applyDecision(active.id, "Approved", note)}
-          onReject={(note) => applyDecision(active.id, "Rejected", note)}
-        />
+                  {/* Meta */}
+                  <div className="px-4 pb-4 space-y-1.5 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5 shrink-0" />
+                      <span className="tabular-nums">{fmtDate(r.date)}</span>
+                    </div>
+                    <div className="truncate">
+                      Requested by <span className="text-foreground">{r.requestedBy}</span>
+                      {" · "}
+                      <span className="tabular-nums">{r.requestedAt}</span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="grid grid-cols-[1fr_auto] border-t border-border">
+                    <button
+                      onClick={() => setActive(r)}
+                      className="h-11 flex items-center justify-center gap-1.5 text-xs font-medium hover:bg-muted transition border-r border-border"
+                    >
+                      {r.status === "Pending" ? "Review" : "View"}
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setPendingDelete(r)}
+                      className="h-11 px-5 flex items-center justify-center gap-1.5 text-xs font-medium text-danger hover:bg-danger-light transition"
+                      aria-label={`Delete request for ${r.studentName}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          {/* ================= DESKTOP: table ================= */}
+          {filtered.length > 0 && (
+            <div className="hidden md:block overflow-x-auto rounded-lg border border-border bg-surface">
+              <table className="w-full text-sm min-w-[980px]">
+                <thead>
+                  <tr className="bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
+                    <th className="px-4 py-3 font-medium">ID</th>
+                    <th className="px-4 py-3 font-medium">Student</th>
+                    <th className="px-4 py-3 font-medium">Date</th>
+                    <th className="px-4 py-3 font-medium">Change</th>
+                    <th className="px-4 py-3 font-medium">Requested by</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium text-right">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((r) => (
+                    <tr
+                      key={r.id}
+                      className="border-t border-border hover:bg-muted/30 transition-colors"
+                    >
+                      <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">
+                        {r.id}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="leading-tight">
+                          <div className="font-medium">{r.studentName}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {r.grade} · {r.className}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap tabular-nums">
+                        {fmtDate(r.date)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <AttendancePill status={r.currentStatus} small />
+                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                          <AttendancePill status={r.requestedStatus} small />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="leading-tight">
+                          <div>{r.requestedBy}</div>
+                          <div className="text-xs text-muted-foreground tabular-nums">
+                            {r.requestedAt}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <StatusBadge status={r.status} />
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setActive(r)}
+                            className="h-8 px-3 rounded-md border border-border text-xs hover:bg-muted inline-flex items-center gap-1"
+                          >
+                            {r.status === "Pending" ? "Review" : "View"}
+                            <ArrowRight className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => setPendingDelete(r)}
+                            className="h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-danger hover:bg-danger-light inline-flex items-center justify-center transition-colors shrink-0"
+                            aria-label={`Delete request for ${r.studentName}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {filtered.length > 0 && (
+            <div className="mt-3 text-xs text-muted-foreground">
+              Showing {filtered.length} of {requests.length} requests
+            </div>
+          )}
+
+          {/* ================= DRAWER ================= */}
+          {active && (
+            <ReviewDrawer
+              request={active}
+              onClose={() => setActive(null)}
+              onApprove={(note) => applyDecision(active.id, "Approved", note)}
+              onReject={(note) => applyDecision(active.id, "Rejected", note)}
+            />
+          )}
+
+          {/* ================= CONFIRM DELETE ================= */}
+          <ConfirmDialog
+            open={pendingDelete !== null}
+            title="Delete correction request?"
+            message={
+              <>
+                <span className="font-medium text-foreground">
+                  {pendingDelete?.studentName}
+                </span>
+                {" · "}
+                {pendingDelete?.currentStatus} → {pendingDelete?.requestedStatus}{" "}
+                will be removed from the queue. This action cannot be undone.
+              </>
+            }
+            confirmLabel="Delete request"
+            cancelLabel="Keep"
+            tone="danger"
+            icon={<Trash2 className="h-5 w-5" />}
+            onConfirm={confirmDelete}
+            onCancel={() => setPendingDelete(null)}
+          />
+
+          {/* ================= TOASTS ================= */}
+          <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+        </>
       )}
     </PageContainer>
   );
 }
 
-/* ---------------- sub-components ---------------- */
+/* =========================================================
+   Sub-components
+   ========================================================= */
 
 const MONTHS_SHORT = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -304,12 +492,16 @@ function StatCard({
       ? "text-success"
       : "text-danger";
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <div className={`flex items-center justify-center sm:justify-start gap-1.5 text-xs ${cls}`}>
+    <div className="rounded-lg border border-border bg-surface p-3 sm:p-4 min-w-0">
+      <div className={`flex items-center gap-1.5 text-xs ${cls}`}>
         {icon}
-        {label}
+        <span className="truncate">{label}</span>
       </div>
-      <div className={`mt-1 text-2xl text-center sm:text-left font-semibold ${cls}`}>{value}</div>
+      <div
+        className={`mt-1 text-2xl sm:text-3xl font-semibold tabular-nums ${cls}`}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -334,7 +526,7 @@ function FilterTab({
     >
       {children}
       <span
-        className={`inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] ${
+        className={`inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] tabular-nums ${
           active ? "bg-white/20" : "bg-muted text-muted-foreground"
         }`}
       >
@@ -347,15 +539,19 @@ function FilterTab({
 function StatusBadge({ status }: { status: CorrectionRequest["status"] }) {
   const cls =
     status === "Pending"
-      ? "bg-warning-light text-warning"
+      ? "bg-warning-light text-warning border border-warning/20"
       : status === "Approved"
-      ? "bg-success-light text-success"
-      : "bg-danger-light text-danger";
+      ? "bg-success-light text-success border border-success/20"
+      : "bg-danger-light text-danger border border-danger/20";
   const Icon =
-    status === "Pending" ? Clock : status === "Approved" ? CheckCircle2 : XCircle;
+    status === "Pending"
+      ? Clock
+      : status === "Approved"
+      ? CheckCircle2
+      : XCircle;
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}
+      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${cls}`}
     >
       <Icon className="h-3 w-3" />
       {status}
@@ -372,13 +568,13 @@ function AttendancePill({
 }) {
   const cls =
     status === "Present"
-      ? "bg-success-light text-success"
+      ? "bg-success-light text-success border border-success/20"
       : status === "Absent"
-      ? "bg-danger-light text-danger"
-      : "bg-warning-light text-warning";
+      ? "bg-danger-light text-danger border border-danger/20"
+      : "bg-warning-light text-warning border border-warning/20";
   return (
     <span
-      className={`inline-flex items-center rounded-full font-medium ${cls} ${
+      className={`inline-flex items-center rounded-full font-medium whitespace-nowrap ${cls} ${
         small ? "px-1.5 py-0.5 text-[11px]" : "px-2 py-0.5 text-xs"
       }`}
     >
@@ -387,7 +583,9 @@ function AttendancePill({
   );
 }
 
-/* ---------------- drawer ---------------- */
+/* =========================================================
+   Review drawer
+   ========================================================= */
 
 function ReviewDrawer({
   request,
@@ -430,7 +628,7 @@ function ReviewDrawer({
         {/* Header */}
         <div className="flex items-start justify-between gap-3 px-4 sm:px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-start gap-3 min-w-0">
-            <span className="h-10 w-10 rounded-lg bg-blue-light text-blue grid place-items-center shrink-0">
+            <span className="h-10 w-10 rounded-lg bg-blue-light text-blue border border-blue/20 grid place-items-center shrink-0">
               <FileEdit className="h-5 w-5" />
             </span>
             <div className="min-w-0">
@@ -455,7 +653,7 @@ function ReviewDrawer({
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
           <div className="flex items-center justify-between">
             <StatusBadge status={request.status} />
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground tabular-nums">
               {fmtDate(request.date)} · {request.requestedAt}
             </span>
           </div>
@@ -596,7 +794,7 @@ function ReviewDrawer({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-border p-4 pb-6 sm:pb-4 space-y-2 shrink-0">
+        <div className="border-t border-border p-4 space-y-2 shrink-0">
           {isPending && mode === "idle" && (
             <>
               <button

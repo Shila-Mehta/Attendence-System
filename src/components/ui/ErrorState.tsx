@@ -1,3 +1,5 @@
+"use client";
+
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
 export function ErrorState({
@@ -11,7 +13,7 @@ export function ErrorState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-      <div className="h-12 w-12 rounded-full bg-danger-light text-danger grid place-items-center mb-3">
+      <div className="h-12 w-12 rounded-lg bg-danger-light text-danger border border-danger/20 grid place-items-center mb-3">
         <AlertTriangle className="h-5 w-5" />
       </div>
       <h3 className="text-sm font-semibold">{title}</h3>
